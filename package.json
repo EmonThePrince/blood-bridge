@@ -1,0 +1,40 @@
+{
+  "name": "blood-bridge-js",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "~5.0.4",
+    "@lottiefiles/dotlottie-react": "^0.14.2",
+    "@lottiefiles/react-lottie-player": "^3.6.0",
+    "@react-native-community/datetimepicker": "^8.4.2",
+    "@react-navigation/drawer": "^7.5.2",
+    "@react-navigation/native": "^7.1.14",
+    "@react-navigation/native-stack": "^7.3.21",
+    "expo": "~53.0.13",
+    "expo-app-loading": "^2.1.1",
+    "expo-font": "^13.3.1",
+    "expo-status-bar": "~2.2.3",
+    "lottie-react-native": "^7.2.3",
+    "native-base": "^3.4.28",
+    "normalize-css-color": "^1.0.2",
+    "react": "^19.0.0",
+    "react-dom": "19.0.0",
+    "react-native": "^0.79.4",
+    "react-native-gesture-handler": "^2.26.0",
+    "react-native-reanimated": "~3.17.4",
+    "react-native-safe-area-context": "^5.5.0",
+    "react-native-screens": "^4.11.1",
+    "react-native-svg": "^15.12.0",
+    "react-native-web": "^0.20.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0"
+  },
+  "private": true
+}
