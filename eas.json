@@ -13,6 +13,7 @@
     },
     "production": {
       "autoIncrement": true
+<<<<<<< HEAD
     },
     "release": { 
       "android": {
@@ -21,9 +22,15 @@
       "ios": {
         "buildConfiguration": "Release" 
       }
+=======
+>>>>>>> 5a242e507fb237cf88446b90b2244b6cc4f2d56a
     }
   },
   "submit": {
     "production": {}
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 5a242e507fb237cf88446b90b2244b6cc4f2d56a
