@@ -149,8 +149,13 @@ export default function BloodRequest() {
                 </RNText>
               </TouchableOpacity>
 
-              {isBloodGroupDropdownOpen && (
-                <View style={styles.dropdownList}>
+             {isBloodGroupDropdownOpen && (
+                <ScrollView 
+                  style={styles.dropdownList}
+                  nestedScrollEnabled={true}
+                  showsVerticalScrollIndicator={true}
+                  keyboardShouldPersistTaps="handled"
+                >
                   {bloodGroups.map((group) => (
                     <TouchableOpacity
                       key={group}
@@ -163,7 +168,7 @@ export default function BloodRequest() {
                       )}
                     </TouchableOpacity>
                   ))}
-                </View>
+                </ScrollView>
               )}
             </View>
 

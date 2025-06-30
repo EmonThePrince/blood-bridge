@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, View, Text as RNText, TouchableOpacity, Modal, Alert, Linking } from 'react-native';
+import { ScrollView, StyleSheet, View, Text as RNText, TouchableOpacity, Modal, Alert, Linking, TextInput } from 'react-native';
 import { useDonorAuth } from '../context/DonorAuthContext'; // Import the auth context
 
 const initialRequests = [
@@ -80,10 +80,18 @@ const initialRequests = [
   },
 ];
 
+const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
 export default function DonorDashboard() {
   const [requests, setRequests] = useState(initialRequests);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  
+  // Search functionality states
+  const [filteredRequests, setFilteredRequests] = useState(initialRequests);
+  const [selectedBloodGroup, setSelectedBloodGroup] = useState('');
+  const [locationInput, setLocationInput] = useState('');
+  const [activeFilter, setActiveFilter] = useState('all');
   
   // Get the current donor from auth context
   const { currentDonor } = useDonorAuth();
@@ -106,6 +114,74 @@ export default function DonorDashboard() {
       case 'low': return '#F0FDF4';
       default: return '#F9FAFB';
     }
+  };
+
+  // Search functionality functions
+  const renderBloodGroupButton = (group) => (
+    <TouchableOpacity
+      key={group}
+      style={[
+        styles.bloodGroupButton,
+        selectedBloodGroup === group && styles.selectedBloodGroupButton
+      ]}
+      onPress={() => setSelectedBloodGroup(selectedBloodGroup === group ? '' : group)}
+    >
+      <RNText style={[
+        styles.bloodGroupButtonText,
+        selectedBloodGroup === group && styles.selectedBloodGroupButtonText
+      ]}>
+        {group}
+      </RNText>
+    </TouchableOpacity>
+  );
+
+  const filterByBloodGroup = () => {
+    if (!selectedBloodGroup) {
+      Alert.alert('Please select a blood group first');
+      return;
+    }
+    
+    const filtered = requests.filter(request => 
+      request.bloodGroup === selectedBloodGroup
+    );
+    setFilteredRequests(filtered);
+    setActiveFilter('bloodGroup');
+  };
+
+  const filterByLocation = () => {
+    if (!locationInput.trim()) {
+      Alert.alert('Please enter a location first');
+      return;
+    }
+    
+    const filtered = requests.filter(request =>
+      request.location.toLowerCase().includes(locationInput.toLowerCase()) ||
+      request.hospital.toLowerCase().includes(locationInput.toLowerCase())
+    );
+    setFilteredRequests(filtered);
+    setActiveFilter('location');
+  };
+
+  const filterByBoth = () => {
+    if (!selectedBloodGroup || !locationInput.trim()) {
+      Alert.alert('Please select both blood group and location');
+      return;
+    }
+    
+    const filtered = requests.filter(request =>
+      request.bloodGroup === selectedBloodGroup &&
+      (request.location.toLowerCase().includes(locationInput.toLowerCase()) ||
+       request.hospital.toLowerCase().includes(locationInput.toLowerCase()))
+    );
+    setFilteredRequests(filtered);
+    setActiveFilter('both');
+  };
+
+  const resetFilters = () => {
+    setFilteredRequests(requests);
+    setSelectedBloodGroup('');
+    setLocationInput('');
+    setActiveFilter('all');
   };
 
   const handleRequestPress = (request) => {
@@ -134,10 +210,10 @@ export default function DonorDashboard() {
           text: "Yes, I Donated",
           style: "default",
           onPress: () => {
-            // Remove the request from the list
-            setRequests(prevRequests => 
-              prevRequests.filter(request => request.id !== requestId)
-            );
+            // Remove the request from both the main list and filtered list
+            const updatedRequests = requests.filter(request => request.id !== requestId);
+            setRequests(updatedRequests);
+            setFilteredRequests(filteredRequests.filter(request => request.id !== requestId));
             setModalVisible(false);
             
             // Show success message with donor's name
@@ -228,11 +304,69 @@ export default function DonorDashboard() {
             )}
           </View>
 
+          {/* Search Section */}
+          <View style={styles.searchCard}>
+            <RNText style={styles.searchTitle}>🩸 Search Filters</RNText>
+            {/* Blood Group Selection */}
+            <View style={styles.filterSection}>
+              <View style={styles.filterHeader}>
+                <RNText style={styles.filterLabel}>Blood Group Needed</RNText>
+              </View>
+              <View style={styles.bloodGroupGrid}>
+                {bloodGroups.map(group => renderBloodGroupButton(group))}
+              </View>
+              <TouchableOpacity
+                style={styles.searchButton}
+                onPress={filterByBloodGroup}
+              >
+                <RNText style={styles.searchEmoji}>🩸</RNText>
+                <RNText style={styles.searchButtonText}>Search by Blood Group</RNText>
+              </TouchableOpacity>
+            </View>
+            {/* Location Search */}
+            <View style={styles.filterSection}>
+              <View style={styles.filterHeader}>
+                <RNText style={styles.filterLabel}>📍 Location</RNText>
+              </View>
+              <TextInput
+                style={styles.locationInput}
+                placeholder="Enter city or area (e.g. Dhaka, Chittagong)"
+                value={locationInput}
+                onChangeText={setLocationInput}
+                placeholderTextColor="#999"
+              />
+              <TouchableOpacity
+                style={[styles.searchButton, styles.locationButton]}
+                onPress={filterByLocation}
+              >
+                <RNText style={styles.searchEmoji}>📍</RNText>
+                <RNText style={styles.searchButtonText}>Search by Location</RNText>
+              </TouchableOpacity>
+            </View>
+            {/* Combined Search */}
+            <View style={styles.combinedSearchSection}>
+              <TouchableOpacity
+                style={styles.combinedButton}
+                onPress={filterByBoth}
+              >
+                <RNText style={styles.combinedEmoji}>🎯</RNText>
+                <RNText style={styles.combinedButtonText}>Search by Both</RNText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.resetButton}
+                onPress={resetFilters}
+              >
+                <RNText style={styles.resetEmoji}>🔄</RNText>
+                <RNText style={styles.resetButtonText}>Reset Filters</RNText>
+              </TouchableOpacity>
+            </View>
+          </View>
+
           {/* Stats Section */}
           <View style={styles.statsContainer}>
             <View style={styles.statCard}>
               <RNText style={styles.statNumber}>{requests.length}</RNText>
-              <RNText style={styles.statLabel}>Active Requests</RNText>
+              <RNText style={styles.statLabel}>Total Requests</RNText>
             </View>
             <View style={styles.statCard}>
               <RNText style={styles.statNumber}>
@@ -242,25 +376,33 @@ export default function DonorDashboard() {
             </View>
           </View>
 
-          {/* Requests List */}
-          <View style={styles.requestsList}>
-            {requests.length > 0 ? (
-              requests.map((item, index) => (
-                <View key={item.id}>
-                  {renderRequestCard({ item })}
+          {/* Results Section */}
+          <View style={styles.resultsSection}>
+            <View style={styles.resultsHeader}>
+              <RNText style={styles.resultsTitle}>
+                {activeFilter === 'all' ? '👥 All Requests' : '🎯 Search Results'}
+              </RNText>
+              <RNText style={styles.resultsCount}>
+                {filteredRequests.length} request{filteredRequests.length !== 1 ? 's' : ''} found
+              </RNText>
+            </View>
+            <View style={styles.requestsList}>
+              {filteredRequests.length > 0 ? (
+                filteredRequests.map((item, index) => (
+                  <View key={item.id}>
+                    {renderRequestCard({ item })}
+                  </View>
+                ))
+              ) : (
+                <View style={styles.noResultsContainer}>
+                  <RNText style={styles.noResultsEmoji}>😔</RNText>
+                  <RNText style={styles.noResultsText}>No requests found</RNText>
+                  <RNText style={styles.noResultsSubtext}>
+                    Try adjusting your search criteria
+                  </RNText>
                 </View>
-              ))
-            ) : (
-              <View style={styles.emptyState}>
-                <RNText style={styles.emptyStateIcon}>🎉</RNText>
-                <RNText style={styles.emptyStateText}>
-                  Great! No active requests right now.
-                </RNText>
-                <RNText style={styles.emptyStateSubtext}>
-                  Thank you for your contributions to saving lives!
-                </RNText>
-              </View>
-            )}
+              )}
+            </View>
           </View>
 
           {/* Footer */}
@@ -479,6 +621,196 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     textAlign: 'center',
   },
+  // Search Styles
+  searchCard: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#DC2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  searchTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#DC2626',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  filterSection: {
+    marginBottom: 20,
+  },
+  filterHeader: {
+    marginBottom: 12,
+  },
+  filterLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  bloodGroupGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  bloodGroupButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    backgroundColor: 'white',
+  },
+  selectedBloodGroupButton: {
+    backgroundColor: '#DC2626',
+    borderColor: '#DC2626',
+  },
+  bloodGroupButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  selectedBloodGroupButtonText: {
+    color: 'white',
+  },
+  searchButton: {
+    backgroundColor: '#DC2626',
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  locationButton: {
+    backgroundColor: '#3B82F6',
+  },
+  searchEmoji: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  searchButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  locationInput: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    color: '#374151',
+    backgroundColor: '#F9FAFB',
+    marginBottom: 12,
+  },
+  combinedSearchSection: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  combinedButton: {
+    flex: 1,
+    backgroundColor: '#10B981',
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resetButton: {
+    flex: 1,
+    backgroundColor: '#6B7280',
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  combinedEmoji: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  resetEmoji: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  combinedButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  resetButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Results Styles
+  resultsSection: {
+    width: '100%',
+    maxWidth: 400,
+    marginBottom: 24,
+  },
+  resultsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  resultsTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  resultsCount: {
+    fontSize: 12,
+    color: 'white',
+    opacity: 0.8,
+  },
+  noResultsContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    margin: 4,
+  },
+  noResultsEmoji: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  noResultsText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#374151',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  noResultsSubtext: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  welcomeContainer: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  welcomeText: {
+    fontSize: 16,
+    color: 'white',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  welcomeSubtext: {
+    fontSize: 12,
+    color: 'white',
+    opacity: 0.8,
+  },
   statsContainer: {
     flexDirection: 'row',
     width: '100%',
@@ -486,6 +818,8 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     gap: 12,
   },
+  // Complete the remaining styles from where it was cut off:
+
   statCard: {
     flex: 1,
     backgroundColor: 'white',
@@ -493,10 +827,10 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     shadowColor: '#DC2626',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
   },
   statNumber: {
     fontSize: 24,
@@ -507,24 +841,21 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     color: '#6B7280',
-    fontWeight: '600',
+    textAlign: 'center',
   },
   requestsList: {
     width: '100%',
-    maxWidth: 400,
-    marginBottom: 24,
   },
   requestCard: {
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.8)',
+    shadowRadius: 4,
+    elevation: 3,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -533,9 +864,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   urgencyBadge: {
+    borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
   },
   urgencyText: {
     color: 'white',
@@ -543,18 +874,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   timeText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6B7280',
-    fontWeight: '500',
   },
   bloodGroupContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#F3F4F6',
     borderRadius: 12,
   },
   bloodGroupText: {
@@ -568,34 +898,34 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   requestInfo: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   emoji: {
-    fontSize: 16,
+    fontSize: 14,
     marginRight: 8,
-    width: 20,
+    width: 16,
   },
   infoText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#374151',
-    fontWeight: '500',
     flex: 1,
   },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
+    marginTop: 8,
+    paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.1)',
+    borderTopColor: '#E5E7EB',
   },
   tapText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6B7280',
     fontStyle: 'italic',
   },
@@ -604,49 +934,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statusDot: {
-    width: 8,
-    height: 8,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: '#10B981',
-    borderRadius: 4,
-    marginRight: 6,
+    marginRight: 4,
   },
   statusText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#10B981',
     fontWeight: '600',
   },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-  },
-  emptyStateIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: 'white',
-    opacity: 0.8,
-    textAlign: 'center',
-  },
   footer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginTop: 24,
+    marginBottom: 32,
   },
   footerText: {
     fontSize: 14,
     color: 'white',
-    opacity: 0.9,
+    opacity: 0.8,
     textAlign: 'center',
-    fontWeight: '500',
   },
   // Modal Styles
   modalOverlay: {
@@ -659,25 +967,22 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '90%',
-    paddingBottom: 40,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
   },
   modalHeader: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-    alignItems: 'center',
+    marginBottom: 20,
   },
   modalTitleContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    width: '100%',
     marginBottom: 12,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#111827',
   },
   closeButton: {
     padding: 8,
@@ -690,9 +995,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   modalUrgencyBadge: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    alignSelf: 'flex-start',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   modalUrgencyText: {
     color: 'white',
@@ -701,14 +1007,13 @@ const styles = StyleSheet.create({
   },
   bloodGroupSection: {
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#FEF2F2',
-    marginHorizontal: 20,
-    marginVertical: 16,
+    paddingVertical: 20,
+    marginBottom: 20,
+    backgroundColor: '#F9FAFB',
     borderRadius: 16,
   },
   bloodGroupLarge: {
-    fontSize: 36,
+    fontSize: 48,
     fontWeight: 'bold',
     color: '#DC2626',
     marginBottom: 4,
@@ -719,23 +1024,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   detailSection: {
-    paddingHorizontal: 20,
     marginBottom: 20,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#111827',
     marginBottom: 12,
   },
   detailGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 16,
+    gap: 12,
   },
   detailItem: {
     flex: 1,
     minWidth: '45%',
+    marginBottom: 12,
   },
   detailLabel: {
     fontSize: 12,
@@ -745,15 +1050,13 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     fontSize: 14,
-    color: '#1F2937',
+    color: '#111827',
     fontWeight: '500',
   },
   notesContainer: {
     backgroundColor: '#F9FAFB',
-    padding: 16,
     borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3B82F6',
+    padding: 16,
   },
   notesText: {
     fontSize: 14,
@@ -761,88 +1064,69 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   actionSection: {
-    paddingHorizontal: 20,
     marginBottom: 20,
   },
   actionButtons: {
+    flexDirection: 'row',
     gap: 12,
   },
   callButton: {
+    flex: 1,
     backgroundColor: '#10B981',
     borderRadius: 12,
     padding: 16,
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
   },
   callEmoji: {
-    fontSize: 18,
-    marginRight: 8,
+    fontSize: 20,
+    marginBottom: 4,
   },
   callButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
-    marginRight: 8,
+    marginBottom: 2,
   },
   contactNumber: {
     color: 'white',
-    fontSize: 14,
+    fontSize: 12,
     opacity: 0.9,
   },
   smsButton: {
+    flex: 1,
     backgroundColor: '#3B82F6',
     borderRadius: 12,
     padding: 16,
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
   },
   smsEmoji: {
-    fontSize: 18,
-    marginRight: 8,
+    fontSize: 20,
+    marginBottom: 4,
   },
   smsButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
   },
-  // New Donated Button Styles
   donationSection: {
-    paddingHorizontal: 20,
     marginBottom: 20,
   },
   donatedButton: {
-    backgroundColor: '#DC2626',
+    backgroundColor: '#059669',
     borderRadius: 12,
-    padding: 20,
+    padding: 16,
     alignItems: 'center',
-    shadowColor: '#DC2626',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   donatedEmoji: {
     fontSize: 24,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   donatedButtonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   donatedSubtext: {
     color: 'white',
@@ -850,14 +1134,42 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   donationNote: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#6B7280',
     textAlign: 'center',
     fontStyle: 'italic',
   },
-  requestInfoSection: {
-    paddingHorizontal: 20,
+  loginPromptSection: {
+    marginBottom: 20,
+  },
+  loginPromptContainer: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 12,
+    padding: 16,
     alignItems: 'center',
+  },
+  loginPromptIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  loginPromptText: {
+    fontSize: 14,
+    color: '#92400E',
+    textAlign: 'center',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  loginPromptSubtext: {
+    fontSize: 12,
+    color: '#92400E',
+    textAlign: 'center',
+    opacity: 0.8,
+  },
+  requestInfoSection: {
+    alignItems: 'center',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
   },
   requestInfoText: {
     fontSize: 12,
@@ -870,41 +1182,11 @@ const styles = StyleSheet.create({
   },
   shieldEmoji: {
     fontSize: 12,
-    marginRight: 6,
+    marginRight: 4,
   },
   securityText: {
     fontSize: 11,
-    color: '#6B7280',
-  },
-   loginPromptSection: {
-    marginTop: 20,
-    marginBottom: 15,
-  },
-  loginPromptContainer: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderStyle: 'dashed',
-  },
-  loginPromptIcon: {
-    fontSize: 32,
-    marginBottom: 12,
-  },
-  loginPromptText: {
-    fontSize: 16,
+    color: '#10B981',
     fontWeight: '600',
-    color: '#374151',
-    textAlign: 'center',
-    marginBottom: 8,
-    lineHeight: 24,
-  },
-  loginPromptSubtext: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 20,
   },
 });

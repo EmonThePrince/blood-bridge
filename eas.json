@@ -11,26 +11,9 @@
     "preview": {
       "distribution": "internal"
     },
-    "production": {
-      "autoIncrement": true
-<<<<<<< HEAD
-    },
-    "release": { 
-      "android": {
-        "buildType": "app-bundle" 
-      },
-      "ios": {
-        "buildConfiguration": "Release" 
-      }
-=======
->>>>>>> 5a242e507fb237cf88446b90b2244b6cc4f2d56a
-    }
+    "production": {}
   },
   "submit": {
     "production": {}
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 5a242e507fb237cf88446b90b2244b6cc4f2d56a

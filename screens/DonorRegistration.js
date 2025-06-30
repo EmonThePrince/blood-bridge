@@ -101,7 +101,12 @@ export default function DonorRegistration({ navigation }) {
               </TouchableOpacity>
 
               {isDropdownOpen && (
-                <View style={styles.dropdownList}>
+                 <ScrollView 
+                                  style={styles.dropdownList}
+                                  nestedScrollEnabled={true}
+                                  showsVerticalScrollIndicator={true}
+                                  keyboardShouldPersistTaps="handled"
+                                >
                   {bloodGroups.map((group) => (
                     <TouchableOpacity
                       key={group}
@@ -114,7 +119,7 @@ export default function DonorRegistration({ navigation }) {
                       )}
                     </TouchableOpacity>
                   ))}
-                </View>
+                </ScrollView>
               )}
             </View>
 
