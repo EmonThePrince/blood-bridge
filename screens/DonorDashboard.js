@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View, Text as RNText, TouchableOpacity, Modal, Alert, Linking } from 'react-native';
+import { useDonorAuth } from '../context/DonorAuthContext'; // Import the auth context
 
-const dummyRequests = [
+const initialRequests = [
   { 
     id: '1', 
     name: 'Rahim Ahmed', 
@@ -80,8 +81,12 @@ const dummyRequests = [
 ];
 
 export default function DonorDashboard() {
+  const [requests, setRequests] = useState(initialRequests);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  
+  // Get the current donor from auth context
+  const { currentDonor } = useDonorAuth();
 
   const getUrgencyColor = (urgency) => {
     switch (urgency.toLowerCase()) {
@@ -114,6 +119,37 @@ export default function DonorDashboard() {
 
   const handleSMS = (contact) => {
     Linking.openURL(`sms:${contact}`);
+  };
+
+  const handleDonated = (requestId) => {
+    Alert.alert(
+      "Confirm Donation",
+      "Have you completed the blood donation for this request?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Yes, I Donated",
+          style: "default",
+          onPress: () => {
+            // Remove the request from the list
+            setRequests(prevRequests => 
+              prevRequests.filter(request => request.id !== requestId)
+            );
+            setModalVisible(false);
+            
+            // Show success message with donor's name
+            Alert.alert(
+              "Thank You! 🙏",
+              `${currentDonor.name}, your donation has been recorded. You've helped save a life!`,
+              [{ text: "OK", style: "default" }]
+            );
+          }
+        }
+      ]
+    );
   };
 
   const renderRequestCard = ({ item }) => (
@@ -179,17 +215,28 @@ export default function DonorDashboard() {
             <RNText style={styles.subtitle}>
               Help save lives by responding to urgent requests
             </RNText>
+            {/* Show welcome message if donor is logged in */}
+            {currentDonor && (
+              <View style={styles.welcomeContainer}>
+                <RNText style={styles.welcomeText}>
+                  Welcome back, {currentDonor.name}! 👋
+                </RNText>
+                <RNText style={styles.welcomeSubtext}>
+                  Blood Group: {currentDonor.bloodGroup} • {currentDonor.donationCount} donations
+                </RNText>
+              </View>
+            )}
           </View>
 
           {/* Stats Section */}
           <View style={styles.statsContainer}>
             <View style={styles.statCard}>
-              <RNText style={styles.statNumber}>{dummyRequests.length}</RNText>
+              <RNText style={styles.statNumber}>{requests.length}</RNText>
               <RNText style={styles.statLabel}>Active Requests</RNText>
             </View>
             <View style={styles.statCard}>
               <RNText style={styles.statNumber}>
-                {dummyRequests.filter(r => r.urgency === 'Critical').length}
+                {requests.filter(r => r.urgency === 'Critical').length}
               </RNText>
               <RNText style={styles.statLabel}>Critical</RNText>
             </View>
@@ -197,11 +244,23 @@ export default function DonorDashboard() {
 
           {/* Requests List */}
           <View style={styles.requestsList}>
-            {dummyRequests.map((item, index) => (
-              <View key={item.id}>
-                {renderRequestCard({ item })}
+            {requests.length > 0 ? (
+              requests.map((item, index) => (
+                <View key={item.id}>
+                  {renderRequestCard({ item })}
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <RNText style={styles.emptyStateIcon}>🎉</RNText>
+                <RNText style={styles.emptyStateText}>
+                  Great! No active requests right now.
+                </RNText>
+                <RNText style={styles.emptyStateSubtext}>
+                  Thank you for your contributions to saving lives!
+                </RNText>
               </View>
-            ))}
+            )}
           </View>
 
           {/* Footer */}
@@ -316,6 +375,40 @@ export default function DonorDashboard() {
                       </TouchableOpacity>
                     </View>
                   </View>
+
+                  {/* Donated Button - Only visible to logged-in donors */}
+                  {currentDonor && (
+                    <View style={styles.donationSection}>
+                      <RNText style={styles.sectionTitle}>🩸 Donation Status</RNText>
+                      <TouchableOpacity 
+                        style={styles.donatedButton}
+                        onPress={() => handleDonated(selectedRequest.id)}
+                      >
+                        <RNText style={styles.donatedEmoji}>✅</RNText>
+                        <RNText style={styles.donatedButtonText}>I Have Donated</RNText>
+                        <RNText style={styles.donatedSubtext}>Tap after successful donation</RNText>
+                      </TouchableOpacity>
+                      <RNText style={styles.donationNote}>
+                        Only click this button after you have successfully completed the blood donation.
+                      </RNText>
+                    </View>
+                  )}
+
+                  {/* Login Prompt for Non-Donors */}
+                  {!currentDonor && (
+                    <View style={styles.loginPromptSection}>
+                      <RNText style={styles.sectionTitle}>🔐 Donor Login Required</RNText>
+                      <View style={styles.loginPromptContainer}>
+                        <RNText style={styles.loginPromptIcon}>👤</RNText>
+                        <RNText style={styles.loginPromptText}>
+                          Please log in as a verified donor to mark your donation status.
+                        </RNText>
+                        <RNText style={styles.loginPromptSubtext}>
+                          This helps us maintain accurate records and verify donations.
+                        </RNText>
+                      </View>
+                    </View>
+                  )}
 
                   {/* Request Info */}
                   <View style={styles.requestInfoSection}>
@@ -522,6 +615,28 @@ const styles = StyleSheet.create({
     color: '#10B981',
     fontWeight: '600',
   },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  emptyStateIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: 'white',
+    opacity: 0.8,
+    textAlign: 'center',
+  },
   footer: {
     alignItems: 'center',
     marginBottom: 24,
@@ -702,6 +817,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  // New Donated Button Styles
+  donationSection: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  donatedButton: {
+    backgroundColor: '#DC2626',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#DC2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+    marginBottom: 12,
+  },
+  donatedEmoji: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  donatedButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  donatedSubtext: {
+    color: 'white',
+    fontSize: 12,
+    opacity: 0.9,
+  },
+  donationNote: {
+    fontSize: 11,
+    color: '#6B7280',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
   requestInfoSection: {
     paddingHorizontal: 20,
     alignItems: 'center',
@@ -722,5 +875,36 @@ const styles = StyleSheet.create({
   securityText: {
     fontSize: 11,
     color: '#6B7280',
+  },
+   loginPromptSection: {
+    marginTop: 20,
+    marginBottom: 15,
+  },
+  loginPromptContainer: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderStyle: 'dashed',
+  },
+  loginPromptIcon: {
+    fontSize: 32,
+    marginBottom: 12,
+  },
+  loginPromptText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    textAlign: 'center',
+    marginBottom: 8,
+    lineHeight: 24,
+  },
+  loginPromptSubtext: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

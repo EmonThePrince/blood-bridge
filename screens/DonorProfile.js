@@ -8,14 +8,18 @@ export default function DonorProfile({ route, navigation }) {
   const [showDonationModal, setShowDonationModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // State for editable fields in the modal
+  // State for all editable fields in the modal
   const [editableName, setEditableName] = useState(currentDonor?.name || '');
   const [editableLocation, setEditableLocation] = useState(currentDonor?.location || '');
   const [editablePhone, setEditablePhone] = useState(currentDonor?.phone || '');
+  const [editableAge, setEditableAge] = useState(currentDonor?.age?.toString() || '');
+  const [editableWeight, setEditableWeight] = useState(currentDonor?.weight || '');
+  const [editableBloodPressure, setEditableBloodPressure] = useState(currentDonor?.bloodPressure || '');
   const [editableMedicalHistory, setEditableMedicalHistory] = useState(currentDonor?.medicalHistory || '');
   const [editablePreferredTime, setEditablePreferredTime] = useState(currentDonor?.preferredTime || '');
+  const [editableAvailability, setEditableAvailability] = useState(currentDonor?.availability || '');
   const [editableNotes, setEditableNotes] = useState(currentDonor?.notes || '');
-
+  const [editableEmergencyContact, setEditableEmergencyContact] = useState(currentDonor?.emergencyContact || '');
 
   useEffect(() => {
     if (currentDonor) {
@@ -23,9 +27,14 @@ export default function DonorProfile({ route, navigation }) {
       setEditableName(currentDonor.name || '');
       setEditableLocation(currentDonor.location || '');
       setEditablePhone(currentDonor.phone || '');
+      setEditableAge(currentDonor.age?.toString() || '');
+      setEditableWeight(currentDonor.weight || '');
+      setEditableBloodPressure(currentDonor.bloodPressure || '');
       setEditableMedicalHistory(currentDonor.medicalHistory || '');
       setEditablePreferredTime(currentDonor.preferredTime || '');
+      setEditableAvailability(currentDonor.availability || '');
       setEditableNotes(currentDonor.notes || '');
+      setEditableEmergencyContact(currentDonor.emergencyContact || '');
     } else {
       // If no donor is logged in (e.g., after logout), navigate away
       navigation.replace('Donor Registration'); // Or to a home screen
@@ -35,29 +44,69 @@ export default function DonorProfile({ route, navigation }) {
   const markDonation = () => {
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
     setLastDonation(today);
-    // Update the context with the new lastDonated date
-    updateDonorInfo({ lastDonated: today });
+    // Update the context with the new lastDonated date and increment donation count
+    const newDonationCount = (currentDonor.donationCount || 0) + 1;
+    updateDonorInfo({ 
+      lastDonated: today,
+      donationCount: newDonationCount
+    });
     setShowDonationModal(false);
+    Alert.alert('Success', 'Donation recorded successfully!');
   };
 
   const handleSaveProfile = () => {
-    // Basic validation
-    if (!editableName || !editablePhone || !editableLocation) {
-      Alert.alert('Error', 'Name, Phone, and Location cannot be empty.');
+    // Enhanced validation
+    if (!editableName.trim()) {
+      Alert.alert('Error', 'Name cannot be empty.');
+      return;
+    }
+    if (!editablePhone.trim()) {
+      Alert.alert('Error', 'Phone number cannot be empty.');
+      return;
+    }
+    if (!editableLocation.trim()) {
+      Alert.alert('Error', 'Location cannot be empty.');
+      return;
+    }
+    if (editableAge && (isNaN(editableAge) || parseInt(editableAge) < 18 || parseInt(editableAge) > 65)) {
+      Alert.alert('Error', 'Age must be between 18 and 65.');
       return;
     }
 
     const updatedData = {
-      name: editableName,
-      location: editableLocation,
-      phone: editablePhone,
-      medicalHistory: editableMedicalHistory,
-      preferredTime: editablePreferredTime,
-      notes: editableNotes,
-      // Do NOT allow editing bloodGroup, age, donationCount, verified status directly here
+      name: editableName.trim(),
+      location: editableLocation.trim(),
+      phone: editablePhone.trim(),
+      age: editableAge ? parseInt(editableAge) : currentDonor.age,
+      weight: editableWeight.trim(),
+      bloodPressure: editableBloodPressure.trim(),
+      medicalHistory: editableMedicalHistory.trim(),
+      preferredTime: editablePreferredTime.trim(),
+      availability: editableAvailability.trim(),
+      notes: editableNotes.trim(),
+      emergencyContact: editableEmergencyContact.trim(),
+      // Do NOT allow editing bloodGroup, donationCount, verified status, registeredSince directly here
     };
+    
     updateDonorInfo(updatedData);
     setShowEditModal(false);
+    Alert.alert('Success', 'Profile updated successfully!');
+  };
+
+  const resetEditForm = () => {
+    if (currentDonor) {
+      setEditableName(currentDonor.name || '');
+      setEditableLocation(currentDonor.location || '');
+      setEditablePhone(currentDonor.phone || '');
+      setEditableAge(currentDonor.age?.toString() || '');
+      setEditableWeight(currentDonor.weight || '');
+      setEditableBloodPressure(currentDonor.bloodPressure || '');
+      setEditableMedicalHistory(currentDonor.medicalHistory || '');
+      setEditablePreferredTime(currentDonor.preferredTime || '');
+      setEditableAvailability(currentDonor.availability || '');
+      setEditableNotes(currentDonor.notes || '');
+      setEditableEmergencyContact(currentDonor.emergencyContact || '');
+    }
   };
 
   if (!currentDonor) {
@@ -163,7 +212,6 @@ export default function DonorProfile({ route, navigation }) {
               <RNText style={styles.detailValueLong}>{currentDonor.emergencyContact}</RNText>
             </View>
 
-
             <TouchableOpacity style={styles.markDonationButton} onPress={() => setShowDonationModal(true)}>
               <RNText style={styles.markDonationEmoji}>🩸</RNText>
               <RNText style={styles.markDonationButtonText}>Mark New Donation</RNText>
@@ -221,59 +269,152 @@ export default function DonorProfile({ route, navigation }) {
         animationType="slide"
         transparent={true}
         visible={showEditModal}
-        onRequestClose={() => setShowEditModal(false)}
+        onRequestClose={() => {
+          resetEditForm();
+          setShowEditModal(false);
+        }}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { maxHeight: '80%' }]}>
-            <TouchableOpacity style={styles.modalCloseButton} onPress={() => setShowEditModal(false)}>
+          <View style={[styles.modalContent, { maxHeight: '90%', width: '95%' }]}>
+            <TouchableOpacity 
+              style={styles.modalCloseButton} 
+              onPress={() => {
+                resetEditForm();
+                setShowEditModal(false);
+              }}
+            >
               <RNText style={styles.modalCloseButtonText}>✕</RNText>
             </TouchableOpacity>
             <RNText style={styles.modalHeader}>Edit Profile</RNText>
 
-            <ScrollView style={{ marginTop: 10 }}>
-              <RNText style={styles.inputLabel}>Name</RNText>
+            <ScrollView style={{ marginTop: 10 }} showsVerticalScrollIndicator={false}>
+              {/* Personal Information Section */}
+              <RNText style={styles.sectionHeader}>👤 Personal Information</RNText>
+              
+              <RNText style={styles.inputLabel}>Name *</RNText>
               <TextInput
                 style={styles.input}
                 value={editableName}
                 onChangeText={setEditableName}
+                placeholder="Enter your full name"
               />
-              <RNText style={styles.inputLabel}>Location</RNText>
-              <TextInput
-                style={styles.input}
-                value={editableLocation}
-                onChangeText={setEditableLocation}
-              />
-              <RNText style={styles.inputLabel}>Phone</RNText>
+              
+              <RNText style={styles.inputLabel}>Phone Number *</RNText>
               <TextInput
                 style={styles.input}
                 value={editablePhone}
                 keyboardType="phone-pad"
                 onChangeText={setEditablePhone}
+                placeholder="Enter your phone number"
               />
-              <RNText style={styles.inputLabel}>Medical History</RNText>
+              
+              <RNText style={styles.inputLabel}>Location *</RNText>
               <TextInput
-                style={[styles.input, { height: 80 }]}
-                value={editableMedicalHistory}
-                multiline
-                onChangeText={setEditableMedicalHistory}
+                style={styles.input}
+                value={editableLocation}
+                onChangeText={setEditableLocation}
+                placeholder="Enter your location"
               />
+              
+              <RNText style={styles.inputLabel}>Age</RNText>
+              <TextInput
+                style={styles.input}
+                value={editableAge}
+                keyboardType="numeric"
+                onChangeText={setEditableAge}
+                placeholder="Enter your age (18-65)"
+              />
+              
+              <RNText style={styles.inputLabel}>Weight</RNText>
+              <TextInput
+                style={styles.input}
+                value={editableWeight}
+                onChangeText={setEditableWeight}
+                placeholder="e.g., 70 kg"
+              />
+              
+              <RNText style={styles.inputLabel}>Blood Pressure</RNText>
+              <TextInput
+                style={styles.input}
+                value={editableBloodPressure}
+                onChangeText={setEditableBloodPressure}
+                placeholder="e.g., 120/80"
+              />
+
+              {/* Donation Preferences Section */}
+              <RNText style={styles.sectionHeader}>🩸 Donation Preferences</RNText>
+              
               <RNText style={styles.inputLabel}>Preferred Time</RNText>
               <TextInput
                 style={styles.input}
                 value={editablePreferredTime}
                 onChangeText={setEditablePreferredTime}
+                placeholder="e.g., Morning, Afternoon, Evening"
               />
-              <RNText style={styles.inputLabel}>Notes</RNText>
+              
+              <RNText style={styles.inputLabel}>Availability</RNText>
               <TextInput
-                style={[styles.input, { height: 80 }]}
-                value={editableNotes}
-                multiline
-                onChangeText={setEditableNotes}
+                style={styles.input}
+                value={editableAvailability}
+                onChangeText={setEditableAvailability}
+                placeholder="e.g., Weekdays, Weekends, Always"
               />
 
-              <TouchableOpacity style={[styles.markDonationButton, { marginTop: 20 }]} onPress={handleSaveProfile}>
-                <RNText style={styles.markDonationButtonText}>Save Changes</RNText>
-              </TouchableOpacity>
+              {/* Health Information Section */}
+              <RNText style={styles.sectionHeader}>📝 Health Information</RNText>
+              
+              <RNText style={styles.inputLabel}>Medical History</RNText>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={editableMedicalHistory}
+                multiline
+                numberOfLines={4}
+                onChangeText={setEditableMedicalHistory}
+                placeholder="Any relevant medical history or conditions"
+                textAlignVertical="top"
+              />
+              
+              <RNText style={styles.inputLabel}>Additional Notes</RNText>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={editableNotes}
+                multiline
+                numberOfLines={4}
+                onChangeText={setEditableNotes}
+                placeholder="Any additional notes or special instructions"
+                textAlignVertical="top"
+              />
+              
+              <RNText style={styles.inputLabel}>Emergency Contact</RNText>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={editableEmergencyContact}
+                multiline
+                numberOfLines={3}
+                onChangeText={setEditableEmergencyContact}
+                placeholder="Name and phone number of emergency contact"
+                textAlignVertical="top"
+              />
+
+              {/* Action Buttons */}
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity 
+                  style={[styles.actionButton, styles.saveButton]} 
+                  onPress={handleSaveProfile}
+                >
+                  <RNText style={styles.actionButtonText}>💾 Save Changes</RNText>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.actionButton, styles.cancelButton]} 
+                  onPress={() => {
+                    resetEditForm();
+                    setShowEditModal(false);
+                  }}
+                >
+                  <RNText style={styles.actionButtonText}>❌ Cancel</RNText>
+                </TouchableOpacity>
+              </View>
             </ScrollView>
           </View>
         </View>
@@ -453,6 +594,13 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
   },
+  sectionHeader: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#b71c1c',
+    marginTop: 20,
+    marginBottom: 15,
+  },
   inputLabel: {
     fontWeight: 'bold',
     color: '#b71c1c',
@@ -466,5 +614,34 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginBottom: 15,
     color: '#333',
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  buttonContainer: {
+    marginTop: 30,
+    marginBottom: 20,
+    gap: 10,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButton: {
+    backgroundColor: '#b71c1c',
+  },
+  cancelButton: {
+    backgroundColor: '#aaa',
+  },
+  actionButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 5,
   },
 });
