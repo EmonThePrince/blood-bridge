@@ -1,100 +1,125 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ScrollView, StyleSheet, View, Text as RNText, TouchableOpacity, Modal, Alert, Linking, TextInput } from 'react-native';
-import { useDonorAuth } from '../context/DonorAuthContext'; // Import the auth context
-
-const initialRequests = [
-  { 
-    id: '1', 
-    name: 'Rahim Ahmed', 
-    bloodGroup: 'A+', 
-    location: 'Dhaka Medical College Hospital, Dhaka', 
-    contact: '01712345678',
-    urgency: 'Critical',
-    hospital: 'Dhaka Medical College Hospital',
-    patientAge: '45',
-    requiredBy: '2024-12-30',
-    unitsNeeded: '2',
-    notes: 'Patient is undergoing major surgery. Blood needed urgently for post-operative care. Please contact immediately if available.',
-    requestedAt: '2 hours ago',
-    status: 'Active'
-  },
-  { 
-    id: '2', 
-    name: 'Karim Hassan', 
-    bloodGroup: 'B-', 
-    location: 'Chittagong Medical College, Chittagong', 
-    contact: '01887654321',
-    urgency: 'High',
-    hospital: 'Chittagong Medical College',
-    patientAge: '28',
-    requiredBy: '2024-12-31',
-    unitsNeeded: '1',
-    notes: 'Emergency case - road accident victim. Family is at the hospital. Any help would be greatly appreciated.',
-    requestedAt: '4 hours ago',
-    status: 'Active'
-  },
-  { 
-    id: '3', 
-    name: 'Sumaiya Khatun', 
-    bloodGroup: 'O+', 
-    location: 'Sylhet MAG Osmani Medical College, Sylhet', 
-    contact: '01999887766',
-    urgency: 'Medium',
-    hospital: 'MAG Osmani Medical College',
-    patientAge: '35',
-    requiredBy: '2025-01-02',
-    unitsNeeded: '3',
-    notes: 'Planned surgery for kidney stones. Patient has been waiting for suitable donor. Regular blood transfusion needed.',
-    requestedAt: '6 hours ago',
-    status: 'Active'
-  },
-  { 
-    id: '4', 
-    name: 'Jamal Uddin', 
-    bloodGroup: 'AB+', 
-    location: 'Barisal Sher-e-Bangla Medical College, Barisal', 
-    contact: '01711223344',
-    urgency: 'Low',
-    hospital: 'Sher-e-Bangla Medical College',
-    patientAge: '52',
-    requiredBy: '2025-01-05',
-    unitsNeeded: '1',
-    notes: 'Routine blood transfusion for anemia treatment. Patient is stable. Flexible with timing.',
-    requestedAt: '1 day ago',
-    status: 'Active'
-  },
-  { 
-    id: '5', 
-    name: 'Nazia Begum', 
-    bloodGroup: 'O-', 
-    location: 'Rangpur Medical College, Rangpur', 
-    contact: '01899887766',
-    urgency: 'Critical',
-    hospital: 'Rangpur Medical College',
-    patientAge: '22',
-    requiredBy: '2024-12-29',
-    unitsNeeded: '4',
-    notes: 'Pregnancy complications - immediate blood transfusion required. Mother and baby both in critical condition. Please help urgently.',
-    requestedAt: '30 minutes ago',
-    status: 'Active'
-  },
-];
+import { useDonorAuth } from '../context/DonorAuthContext';
 
 const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 export default function DonorDashboard() {
-  const [requests, setRequests] = useState(initialRequests);
+  const [requests, setRequests] = useState([]);
+  const [filteredRequests, setFilteredRequests] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   
-  // Search functionality states
-  const [filteredRequests, setFilteredRequests] = useState(initialRequests);
+  // Filters
   const [selectedBloodGroup, setSelectedBloodGroup] = useState('');
   const [locationInput, setLocationInput] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
-  
-  // Get the current donor from auth context
-  const { currentDonor } = useDonorAuth();
+
+  const { currentDonor,updateDonorInfo } = useDonorAuth();
+
+  // API base URL
+  const API_BASE_URL = 'http://192.168.2.109:8000'; // <== Replace with your real backend URL
+
+  // Fetch all requests on mount or refresh
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  async function fetchRequests(filters = {}) {
+    try {
+      let url = `${API_BASE_URL}/api/requests/`;
+
+      // Build query params for filters (bloodGroup, location)
+      const params = new URLSearchParams();
+      if (filters.bloodGroup) params.append('bloodGroup', filters.bloodGroup);
+      if (filters.location) params.append('location', filters.location);
+
+      if ([...params].length) {
+        url += `?${params.toString()}`;
+      }
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to fetch requests');
+      const data = await res.json();
+
+      setRequests(data);
+      setFilteredRequests(data);
+      setActiveFilter('all');
+      setSelectedBloodGroup('');
+      setLocationInput('');
+    } catch (error) {
+      Alert.alert('Error', 'Could not load requests from server.');
+      console.error(error);
+    }
+  }
+
+  // Replace previous filterByBloodGroup to call backend
+  const filterByBloodGroup = async () => {
+    if (!selectedBloodGroup) {
+      Alert.alert('Please select a blood group first');
+      return;
+    }
+    try {
+      const url = `${API_BASE_URL}/api/requests/?bloodGroup=${encodeURIComponent(selectedBloodGroup)}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to filter by blood group');
+      const data = await res.json();
+      setFilteredRequests(data);
+      setActiveFilter('bloodGroup');
+      setLocationInput('');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to filter by blood group');
+      console.error(error);
+    }
+  };
+
+  // Replace filterByLocation to call backend
+  const filterByLocation = async () => {
+    if (!locationInput.trim()) {
+      Alert.alert('Please enter a location first');
+      return;
+    }
+    try {
+      const url = `${API_BASE_URL}/api/requests/?location=${encodeURIComponent(locationInput.trim())}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to filter by location');
+      const data = await res.json();
+      setFilteredRequests(data);
+      setActiveFilter('location');
+      setSelectedBloodGroup('');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to filter by location');
+      console.error(error);
+    }
+  };
+
+  // Replace filterByBoth to call backend with both params
+  const filterByBoth = async () => {
+    if (!selectedBloodGroup || !locationInput.trim()) {
+      Alert.alert('Please select both blood group and location');
+      return;
+    }
+    try {
+      const params = new URLSearchParams();
+      params.append('bloodGroup', selectedBloodGroup);
+      params.append('location', locationInput.trim());
+      const url = `${API_BASE_URL}/api/requests/?${params.toString()}`;
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to filter by blood group and location');
+      const data = await res.json();
+      setFilteredRequests(data);
+      setActiveFilter('both');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to filter by both blood group and location');
+      console.error(error);
+    }
+  };
+
+  // Reset filters - refetch all requests from backend
+  const resetFilters = () => {
+    fetchRequests();
+  };
 
   const getUrgencyColor = (urgency) => {
     switch (urgency.toLowerCase()) {
@@ -116,7 +141,106 @@ export default function DonorDashboard() {
     }
   };
 
-  // Search functionality functions
+  const handleRequestPress = (request) => {
+    setSelectedRequest(request);
+    setModalVisible(true);
+  };
+
+  const handleCall = (contact) => {
+    Linking.openURL(`tel:${contact}`);
+  };
+
+  const handleSMS = (contact) => {
+    Linking.openURL(`sms:${contact}`);
+  };
+
+  // On donation confirm, call backend and update frontend list
+  const handleDonated = (requestId) => {
+  Alert.alert(
+    "Confirm Donation",
+    "Have you completed the blood donation for this request?",
+    [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Yes, I Donated",
+        onPress: async () => {
+          try {
+            // Step 1: Fetch the full request details to access recipient's blood group
+            const requestRes = await fetch(`${API_BASE_URL}/api/requests/${requestId}/`, {
+              headers: {
+                'Authorization': `Token ${currentDonor?.token}`,
+                'Content-Type': 'application/json',
+              },
+            });
+
+            if (!requestRes.ok) {
+              throw new Error("Failed to fetch request details.");
+            }
+
+            const requestDetails = await requestRes.json();
+            const recipientBloodGroup = requestDetails.bloodGroup; // Adjust if the field name is different
+
+            // Step 2: Compare blood groups
+            if (recipientBloodGroup !== currentDonor.bloodGroup) {
+              Alert.alert(
+                "Blood Group Mismatch ❗",
+                `Your blood group (${currentDonor.bloodGroup}) does not match the recipient's (${recipientBloodGroup}). Please verify before confirming.`,
+                [{ text: "OK" }]
+              );
+              return;
+            }
+
+            // Step 3: Proceed to mark donation if blood groups match
+            const res = await fetch(`${API_BASE_URL}/api/requests/${requestId}/donated/`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Token ${currentDonor?.token}`,
+              },
+            });
+
+            if (!res.ok) {
+              const errorData = await res.json();
+              console.error('Donation mark failed:', errorData);
+              throw new Error(errorData?.detail || 'Failed to mark donation');
+            }
+
+            // Remove request from UI
+            const updatedRequests = requests.filter(r => r.id !== requestId);
+            const updatedFiltered = filteredRequests.filter(r => r.id !== requestId);
+            setRequests(updatedRequests);
+            setFilteredRequests(updatedFiltered);
+            setModalVisible(false);
+
+            // Update donor state locally
+            const today = new Date().toISOString().slice(0, 10);
+            const updatedDonor = {
+              ...currentDonor,
+              donationCount: (currentDonor.donationCount || 0) + 1,
+              lastDonated: today,
+            };
+            updateDonorInfo(updatedDonor);
+
+            Alert.alert(
+              "Thank You! 🙏",
+              `${currentDonor.name}, your donation has been recorded. You've helped save a life!`,
+              [{ text: "OK" }]
+            );
+
+          } catch (error) {
+            Alert.alert('Error', error.message || 'Failed to record donation');
+            console.error(error);
+          }
+        }
+      }
+    ]
+  );
+};
+
+
+
+
+  // Blood group button renderer (no change)
   const renderBloodGroupButton = (group) => (
     <TouchableOpacity
       key={group}
@@ -135,99 +259,7 @@ export default function DonorDashboard() {
     </TouchableOpacity>
   );
 
-  const filterByBloodGroup = () => {
-    if (!selectedBloodGroup) {
-      Alert.alert('Please select a blood group first');
-      return;
-    }
-    
-    const filtered = requests.filter(request => 
-      request.bloodGroup === selectedBloodGroup
-    );
-    setFilteredRequests(filtered);
-    setActiveFilter('bloodGroup');
-  };
-
-  const filterByLocation = () => {
-    if (!locationInput.trim()) {
-      Alert.alert('Please enter a location first');
-      return;
-    }
-    
-    const filtered = requests.filter(request =>
-      request.location.toLowerCase().includes(locationInput.toLowerCase()) ||
-      request.hospital.toLowerCase().includes(locationInput.toLowerCase())
-    );
-    setFilteredRequests(filtered);
-    setActiveFilter('location');
-  };
-
-  const filterByBoth = () => {
-    if (!selectedBloodGroup || !locationInput.trim()) {
-      Alert.alert('Please select both blood group and location');
-      return;
-    }
-    
-    const filtered = requests.filter(request =>
-      request.bloodGroup === selectedBloodGroup &&
-      (request.location.toLowerCase().includes(locationInput.toLowerCase()) ||
-       request.hospital.toLowerCase().includes(locationInput.toLowerCase()))
-    );
-    setFilteredRequests(filtered);
-    setActiveFilter('both');
-  };
-
-  const resetFilters = () => {
-    setFilteredRequests(requests);
-    setSelectedBloodGroup('');
-    setLocationInput('');
-    setActiveFilter('all');
-  };
-
-  const handleRequestPress = (request) => {
-    setSelectedRequest(request);
-    setModalVisible(true);
-  };
-
-  const handleCall = (contact) => {
-    Linking.openURL(`tel:${contact}`);
-  };
-
-  const handleSMS = (contact) => {
-    Linking.openURL(`sms:${contact}`);
-  };
-
-  const handleDonated = (requestId) => {
-    Alert.alert(
-      "Confirm Donation",
-      "Have you completed the blood donation for this request?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "Yes, I Donated",
-          style: "default",
-          onPress: () => {
-            // Remove the request from both the main list and filtered list
-            const updatedRequests = requests.filter(request => request.id !== requestId);
-            setRequests(updatedRequests);
-            setFilteredRequests(filteredRequests.filter(request => request.id !== requestId));
-            setModalVisible(false);
-            
-            // Show success message with donor's name
-            Alert.alert(
-              "Thank You! 🙏",
-              `${currentDonor.name}, your donation has been recorded. You've helped save a life!`,
-              [{ text: "OK", style: "default" }]
-            );
-          }
-        }
-      ]
-    );
-  };
-
+  // Request card renderer (no change)
   const renderRequestCard = ({ item }) => (
     <TouchableOpacity 
       style={[

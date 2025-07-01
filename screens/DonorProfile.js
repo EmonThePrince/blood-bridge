@@ -1,130 +1,182 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollView, StyleSheet, View, Text as RNText, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
-import { useDonorAuth } from '../context/DonorAuthContext'; // Import the context hook
+import { useDonorAuth } from '../context/DonorAuthContext';
+
+const API_BASE_URL = 'http://192.168.2.109:8000/api'; // adjust your backend URL
 
 export default function DonorProfile({ route, navigation }) {
   const { currentDonor, updateDonorInfo, logout } = useDonorAuth();
-  const [lastDonation, setLastDonation] = useState(currentDonor?.lastDonated || null);
+
+  const [donorData, setDonorData] = useState(null);
+
+  // Local editable state
+  const [lastDonation, setLastDonation] = useState(null);
   const [showDonationModal, setShowDonationModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // State for all editable fields in the modal
-  const [editableName, setEditableName] = useState(currentDonor?.name || '');
-  const [editableLocation, setEditableLocation] = useState(currentDonor?.location || '');
-  const [editablePhone, setEditablePhone] = useState(currentDonor?.phone || '');
-  const [editableAge, setEditableAge] = useState(currentDonor?.age?.toString() || '');
-  const [editableWeight, setEditableWeight] = useState(currentDonor?.weight || '');
-  const [editableBloodPressure, setEditableBloodPressure] = useState(currentDonor?.bloodPressure || '');
-  const [editableMedicalHistory, setEditableMedicalHistory] = useState(currentDonor?.medicalHistory || '');
-  const [editablePreferredTime, setEditablePreferredTime] = useState(currentDonor?.preferredTime || '');
-  const [editableAvailability, setEditableAvailability] = useState(currentDonor?.availability || '');
-  const [editableNotes, setEditableNotes] = useState(currentDonor?.notes || '');
-  const [editableEmergencyContact, setEditableEmergencyContact] = useState(currentDonor?.emergencyContact || '');
+  // Changed from editablePhone to editableContact
+  const [editableName, setEditableName] = useState('');
+  const [editableLocation, setEditableLocation] = useState('');
+  const [editableContact, setEditableContact] = useState(''); // <-- renamed here
+  const [editableAge, setEditableAge] = useState('');
+  const [editableWeight, setEditableWeight] = useState('');
+  const [editableBloodPressure, setEditableBloodPressure] = useState('');
+  const [editableMedicalHistory, setEditableMedicalHistory] = useState('');
+  const [editablePreferredTime, setEditablePreferredTime] = useState('');
+  const [editableAvailability, setEditableAvailability] = useState('');
+  const [editableNotes, setEditableNotes] = useState('');
+  const [editableEmergencyContact, setEditableEmergencyContact] = useState('');
 
+  // Fetch donor data from backend when component mounts or currentDonor changes
   useEffect(() => {
-    if (currentDonor) {
-      setLastDonation(currentDonor.lastDonated || null);
-      setEditableName(currentDonor.name || '');
-      setEditableLocation(currentDonor.location || '');
-      setEditablePhone(currentDonor.phone || '');
-      setEditableAge(currentDonor.age?.toString() || '');
-      setEditableWeight(currentDonor.weight || '');
-      setEditableBloodPressure(currentDonor.bloodPressure || '');
-      setEditableMedicalHistory(currentDonor.medicalHistory || '');
-      setEditablePreferredTime(currentDonor.preferredTime || '');
-      setEditableAvailability(currentDonor.availability || '');
-      setEditableNotes(currentDonor.notes || '');
-      setEditableEmergencyContact(currentDonor.emergencyContact || '');
-    } else {
-      // If no donor is logged in (e.g., after logout), navigate away
-      navigation.replace('Donor Registration'); // Or to a home screen
+    if (!currentDonor) {
+      navigation.replace('Donor Registration');
+      return;
     }
-  }, [currentDonor, navigation]);
 
-  const markDonation = () => {
-    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
-    setLastDonation(today);
-    // Update the context with the new lastDonated date and increment donation count
-    const newDonationCount = (currentDonor.donationCount || 0) + 1;
-    updateDonorInfo({ 
-      lastDonated: today,
-      donationCount: newDonationCount
-    });
-    setShowDonationModal(false);
-    Alert.alert('Success', 'Donation recorded successfully!');
+    const fetchDonor = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/donors/${currentDonor.id}/`, {
+          headers: {
+            Authorization: `Token ${currentDonor.token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!res.ok) throw new Error('Failed to fetch donor info');
+        const data = await res.json();
+        setDonorData(data);
+        initializeEditableFields(data);
+      } catch (error) {
+        console.error(error);
+        Alert.alert('Error', 'Could not load profile. Please login again.');
+        logout();
+        navigation.replace('Donor Registration');
+      }
+    };
+
+    fetchDonor();
+  }, [currentDonor, navigation, logout]);
+
+  // Initialize editable states from donor data
+  const initializeEditableFields = (data) => {
+    setLastDonation(data.lastDonated || null);
+    setEditableName(data.name || '');
+    setEditableLocation(data.location || '');
+    setEditableContact(data.contact || ''); // <-- renamed here
+    setEditableAge(data.age?.toString() || '');
+    setEditableWeight(data.weight || '');
+    setEditableBloodPressure(data.bloodPressure || '');
+    setEditableMedicalHistory(data.medicalHistory || '');
+    setEditablePreferredTime(data.preferredTime || '');
+    setEditableAvailability(data.availability || '');
+    setEditableNotes(data.notes || '');
+    setEditableEmergencyContact(data.emergencyContact || '');
   };
 
-  const handleSaveProfile = () => {
-    // Enhanced validation
-    if (!editableName.trim()) {
-      Alert.alert('Error', 'Name cannot be empty.');
-      return;
-    }
-    if (!editablePhone.trim()) {
-      Alert.alert('Error', 'Phone number cannot be empty.');
-      return;
-    }
-    if (!editableLocation.trim()) {
-      Alert.alert('Error', 'Location cannot be empty.');
-      return;
-    }
-    if (editableAge && (isNaN(editableAge) || parseInt(editableAge) < 18 || parseInt(editableAge) > 65)) {
-      Alert.alert('Error', 'Age must be between 18 and 65.');
-      return;
-    }
+  const markDonation = async () => {
+  if (!donorData) return;
 
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+  try {
+    // Send only updated fields using PATCH
+    const updatedData = {
+      lastDonated: today,
+      donationCount: (donorData.donationCount || 0) + 1,
+    };
+
+    const res = await fetch(`${API_BASE_URL}/donors/${donorData.id}/`, {
+      method: 'PATCH', // use PATCH here
+      headers: {
+        Authorization: `Token ${currentDonor.token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updatedData),
+    });
+
+    if (!res.ok) throw new Error('Failed to update donation info');
+
+    const updatedDonor = await res.json();
+    setDonorData(updatedDonor);
+    initializeEditableFields(updatedDonor);
+    updateDonorInfo(updatedDonor);
+
+    setShowDonationModal(false);
+    Alert.alert('Success', 'Donation recorded successfully!');
+  } catch (error) {
+    console.error(error);
+    Alert.alert('Error', 'Failed to record donation.');
+  }
+};
+
+  const handleSaveProfile = async () => {
+  if (!editableName.trim()) {
+    Alert.alert('Error', 'Name cannot be empty.');
+    return;
+  }
+  if (!editableLocation.trim()) {
+    Alert.alert('Error', 'Location cannot be empty.');
+    return;
+  }
+  if (editableAge && (isNaN(editableAge) || parseInt(editableAge) < 18 || parseInt(editableAge) > 65)) {
+    Alert.alert('Error', 'Age must be between 18 and 65.');
+    return;
+  }
+
+  try {
     const updatedData = {
       name: editableName.trim(),
       location: editableLocation.trim(),
-      phone: editablePhone.trim(),
-      age: editableAge ? parseInt(editableAge) : currentDonor.age,
-      weight: editableWeight.trim(),
-      bloodPressure: editableBloodPressure.trim(),
-      medicalHistory: editableMedicalHistory.trim(),
-      preferredTime: editablePreferredTime.trim(),
-      availability: editableAvailability.trim(),
-      notes: editableNotes.trim(),
-      emergencyContact: editableEmergencyContact.trim(),
-      // Do NOT allow editing bloodGroup, donationCount, verified status, registeredSince directly here
+      age: editableAge ? parseInt(editableAge) : null,
+      weight: editableWeight.trim() || null,
+      bloodPressure: editableBloodPressure.trim() || null,
+      medicalHistory: editableMedicalHistory.trim() || null,
+      preferredTime: editablePreferredTime.trim() || null,
+      availability: editableAvailability.trim() || null,
+      notes: editableNotes.trim() || null,
+      emergencyContact: editableEmergencyContact.trim() || null,
+      // DO NOT include phone/contact here — read-only
     };
-    
-    updateDonorInfo(updatedData);
+
+    const res = await fetch(`${API_BASE_URL}/donors/${donorData.id}/`, {
+      method: 'PATCH',  // Use PATCH for partial update
+      headers: {
+        Authorization: `Token ${currentDonor.token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updatedData),
+    });
+
+    if (!res.ok) throw new Error('Failed to update profile');
+
+    const updatedDonor = await res.json();
+    setDonorData(updatedDonor);
+    initializeEditableFields(updatedDonor);
+    updateDonorInfo(updatedDonor);
+
     setShowEditModal(false);
     Alert.alert('Success', 'Profile updated successfully!');
-  };
+  } catch (error) {
+    console.error(error);
+    Alert.alert('Error', 'Failed to update profile.');
+  }
+};
 
   const resetEditForm = () => {
-    if (currentDonor) {
-      setEditableName(currentDonor.name || '');
-      setEditableLocation(currentDonor.location || '');
-      setEditablePhone(currentDonor.phone || '');
-      setEditableAge(currentDonor.age?.toString() || '');
-      setEditableWeight(currentDonor.weight || '');
-      setEditableBloodPressure(currentDonor.bloodPressure || '');
-      setEditableMedicalHistory(currentDonor.medicalHistory || '');
-      setEditablePreferredTime(currentDonor.preferredTime || '');
-      setEditableAvailability(currentDonor.availability || '');
-      setEditableNotes(currentDonor.notes || '');
-      setEditableEmergencyContact(currentDonor.emergencyContact || '');
+    if (donorData) {
+      initializeEditableFields(donorData);
     }
   };
 
-  if (!currentDonor) {
+  if (!donorData) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <RNText style={{ color: 'white', fontSize: 18, fontWeight: 'bold' }}>
-          Please log in to view your profile.
+          Loading your profile...
         </RNText>
-        <TouchableOpacity
-          style={[styles.markDonationButton, { marginTop: 20 }]}
-          onPress={() => navigation.navigate('Donor Login')}
-        >
-          <RNText style={styles.markDonationButtonText}>Go to Login</RNText>
-        </TouchableOpacity>
       </View>
     );
   }
-
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
@@ -299,14 +351,14 @@ export default function DonorProfile({ route, navigation }) {
                 placeholder="Enter your full name"
               />
               
-              <RNText style={styles.inputLabel}>Phone Number *</RNText>
+              {/* <RNText style={styles.inputLabel}>Phone Number *</RNText>
               <TextInput
                 style={styles.input}
-                value={editablePhone}
+                value={editableContact}           // changed from editablePhone
                 keyboardType="phone-pad"
-                onChangeText={setEditablePhone}
+                onChangeText={setEditableContact} // changed from setEditablePhone
                 placeholder="Enter your phone number"
-              />
+              /> */}
               
               <RNText style={styles.inputLabel}>Location *</RNText>
               <TextInput

@@ -11,37 +11,58 @@ export default function DonorRegistration({ navigation }) {
 
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
-  const handleSubmit = () => {
-    // Validate all required fields, including the new password
-    if (!name || !bloodGroup || !phone || !location || !password) {
-      Alert.alert('Error', 'All fields are required!');
-      return;
-    }
+  const handleSubmit = async () => {
+  if (!name || !bloodGroup || !phone || !location || !password) {
+    Alert.alert('Error', 'All fields are required!');
+    return;
+  }
 
-    // Basic password validation (you can enhance this)
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long.');
-      return;
-    }
+  if (password.length < 6) {
+    Alert.alert('Error', 'Password must be at least 6 characters long.');
+    return;
+  }
 
-    console.log({ name, bloodGroup, phone, location, password }); // Log all fields
-    Alert.alert('Success', 'Donor registered successfully!');
-
-    // Navigate to Donor Profile screen, pass donor info as params
-    // In a real app, you would typically register with a backend,
-    // and then log the user in, perhaps navigating to a dashboard.
-    // We're passing the password here for simple local demonstration.
-    navigation.navigate('Donor Profile', {
-      donor: { name, bloodGroup, phone, location, password } // Pass password for demo
+  try {
+    const response = await fetch('http://192.168.2.109:8000/api/donors/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name,
+        bloodGroup,   // Correct field name
+        contact: phone, // Correct field name
+        location,
+        password,
+      }),
     });
 
-    // Clear form after successful registration
-    setName('');
-    setBloodGroup('');
-    setPhone('');
-    setLocation('');
-    setPassword(''); // Clear password field as well
-  };
+    if (response.ok || response.status === 201) {
+      const data = await response.json();
+      
+      // data.token and data.donor exist
+      // You should save the token somewhere (e.g., context, AsyncStorage)
+      // For example, if you have a global auth context, call setCurrentDonor here.
+
+      Alert.alert('Success', 'Donor registered successfully!');
+      navigation.navigate('Donor Profile', { donor: data.donor });
+
+      // Reset form
+      setName('');
+      setBloodGroup('');
+      setPhone('');
+      setLocation('');
+      setPassword('');
+    } else {
+      const errorData = await response.json();
+      const errorMsg = errorData.detail || 'Registration failed.';
+      Alert.alert('Error', errorMsg);
+    }
+  } catch (error) {
+    console.error('Registration error:', error);
+    Alert.alert('Error', 'Failed to connect to server.');
+  }
+};
 
   const selectBloodGroup = (group) => {
     setBloodGroup(group);

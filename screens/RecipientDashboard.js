@@ -1,125 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ScrollView, StyleSheet, View, Text as RNText, TouchableOpacity, Modal, TextInput, Alert, Linking } from 'react-native';
-
-const dummyDonors = [
-  {
-    id: '1',
-    name: 'Ali Rahman',
-    bloodGroup: 'A+',
-    location: 'Dhanmondi, Dhaka',
-    contact: '01710000001',
-    lastDonated: '2024-05-10',
-    age: 28,
-    availability: 'Available',
-    donationCount: 12,
-    verified: true,
-    emergencyContact: '01810000001',
-    medicalHistory: 'No major health issues. Regular donor with consistent health checkups.',
-    preferredTime: 'Morning (9 AM - 12 PM)',
-    notes: 'Available for emergency donations. Prefer to donate at Dhaka Medical College Hospital.',
-    registeredSince: '2022-01-15',
-    weight: '70 kg',
-    bloodPressure: '120/80',
-    lastCheckup: '2024-11-15'
-  },
-  {
-    id: '2',
-    name: 'Tania Khatun',
-    bloodGroup: 'B+',
-    location: 'Sonadanga, Khulna',
-    contact: '01710000002',
-    lastDonated: '2024-06-01',
-    age: 32,
-    availability: 'Available',
-    donationCount: 8,
-    verified: true,
-    emergencyContact: '01820000002',
-    medicalHistory: 'Healthy donor. No allergies or major medical conditions.',
-    preferredTime: 'Evening (2 PM - 6 PM)',
-    notes: 'Works as a teacher. Available after school hours and on weekends.',
-    registeredSince: '2023-03-22',
-    weight: '58 kg',
-    bloodPressure: '115/75',
-    lastCheckup: '2024-10-20'
-  },
-  {
-    id: '3',
-    name: 'Mitu Ahmed',
-    bloodGroup: 'O-',
-    location: 'Shaheb Bazar, Rajshahi',
-    contact: '01710000003',
-    lastDonated: '2024-04-25',
-    age: 25,
-    availability: 'Busy until Jan 5',
-    donationCount: 15,
-    verified: true,
-    emergencyContact: '01830000003',
-    medicalHistory: 'Universal donor. Excellent health record with regular donations.',
-    preferredTime: 'Flexible',
-    notes: 'University student. Can donate during emergencies even when busy.',
-    registeredSince: '2021-08-10',
-    weight: '65 kg',
-    bloodPressure: '118/78',
-    lastCheckup: '2024-12-01'
-  },
-  {
-    id: '4',
-    name: 'Rafiq Hasan',
-    bloodGroup: 'AB+',
-    location: 'Wari, Dhaka',
-    contact: '01710000004',
-    lastDonated: '2024-03-15',
-    age: 35,
-    availability: 'Available',
-    donationCount: 20,
-    verified: true,
-    emergencyContact: '01840000004',
-    medicalHistory: 'Experienced donor with excellent health profile.',
-    preferredTime: 'Weekend',
-    notes: 'Business owner. Prefers weekend donations but available for emergencies.',
-    registeredSince: '2020-05-18',
-    weight: '75 kg',
-    bloodPressure: '122/82',
-    lastCheckup: '2024-11-30'
-  },
-  {
-    id: '5',
-    name: 'Fatima Begum',
-    bloodGroup: 'A-',
-    location: 'Agrabad, Chittagong',
-    contact: '01710000005',
-    lastDonated: '2024-07-20',
-    age: 29,
-    availability: 'Available',
-    donationCount: 6,
-    verified: true,
-    emergencyContact: '01850000005',
-    medicalHistory: 'New regular donor. Clean health record.',
-    preferredTime: 'Morning (10 AM - 1 PM)',
-    notes: 'Nurse at Chittagong Medical College. Understands urgency of blood donations.',
-    registeredSince: '2023-12-05',
-    weight: '62 kg',
-    bloodPressure: '110/70',
-    lastCheckup: '2024-12-10'
-  }
-];
 
 export default function RecipientDashboard() {
   const [bloodGroupInput, setBloodGroupInput] = useState('');
   const [locationInput, setLocationInput] = useState('');
-  const [filteredDonors, setFilteredDonors] = useState(dummyDonors);
+  const [donors, setDonors] = useState([]);
+  const [filteredDonors, setFilteredDonors] = useState([]);
   const [selectedDonor, setSelectedDonor] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
 
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
+  useEffect(() => {
+    const fetchDonors = async () => {
+      try {
+        const res = await fetch('http://192.168.2.109:8000/api/donors/');
+        if (!res.ok) throw new Error('Failed to fetch donors');
+        const data = await res.json();
+        setDonors(data);
+        setFilteredDonors(data);
+      } catch (error) {
+        console.error(error);
+        Alert.alert('Error', 'Could not load donor data');
+      }
+    };
+
+    fetchDonors();
+  }, []);
+
   const filterByBloodGroup = () => {
     if (!bloodGroupInput.trim()) {
       Alert.alert('Error', 'Please enter a blood group');
       return;
     }
-    const filtered = dummyDonors.filter(donor =>
+    const filtered = donors.filter(donor =>
       donor.bloodGroup.toLowerCase() === bloodGroupInput.trim().toLowerCase()
     );
     setFilteredDonors(filtered);
@@ -131,7 +46,7 @@ export default function RecipientDashboard() {
       Alert.alert('Error', 'Please enter a location');
       return;
     }
-    const filtered = dummyDonors.filter(donor =>
+    const filtered = donors.filter(donor =>
       donor.location.toLowerCase().includes(locationInput.trim().toLowerCase())
     );
     setFilteredDonors(filtered);
@@ -143,7 +58,7 @@ export default function RecipientDashboard() {
       Alert.alert('Error', 'Please enter both blood group and location');
       return;
     }
-    const filtered = dummyDonors.filter(donor =>
+    const filtered = donors.filter(donor =>
       donor.bloodGroup.toLowerCase() === bloodGroupInput.trim().toLowerCase() &&
       donor.location.toLowerCase().includes(locationInput.trim().toLowerCase())
     );
@@ -152,7 +67,7 @@ export default function RecipientDashboard() {
   };
 
   const resetFilters = () => {
-    setFilteredDonors(dummyDonors);
+    setFilteredDonors(donors);
     setBloodGroupInput('');
     setLocationInput('');
     setActiveFilter('all');
@@ -512,7 +427,6 @@ export default function RecipientDashboard() {
                         >
                           <RNText style={styles.emergencyEmoji}>🚨</RNText>
                           <RNText style={styles.emergencyButtonText}>Emergency Contact</RNText>
-                          <RNText style={styles.emergencyContactNumber}>{selectedDonor.emergencyContact}</RNText>
                         </TouchableOpacity>
                       )}
                     </View>

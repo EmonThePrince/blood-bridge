@@ -20,62 +20,79 @@ export default function BloodRequest() {
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
   const urgencyLevels = ['Critical', 'Urgent', 'Normal']; // Urgency options
 
-  const handleSubmit = () => {
-    // Basic validation for required fields
-    if (!requestorName || !bloodGroup || !contact || !location || !hospital || !unitsNeeded) {
-      Alert.alert('Error', 'Please fill in all required fields: Name, Blood Group, Contact, Location, Hospital, Units Needed.');
-      return;
-    }
-    if (isNaN(Number(unitsNeeded)) || Number(unitsNeeded) <= 0) {
-      Alert.alert('Error', 'Units Needed must be a positive number.');
-      return;
-    }
-    if (patientAge && (isNaN(Number(patientAge)) || Number(patientAge) <= 0)) {
-        Alert.alert('Error', 'Patient Age must be a positive number or left empty.');
-        return;
-    }
+  const handleSubmit = async () => {
+  // Basic validation for required fields
+  if (!requestorName || !bloodGroup || !contact || !location || !hospital || !unitsNeeded) {
+    Alert.alert('Error', 'Please fill in all required fields: Name, Blood Group, Contact, Location, Hospital, Units Needed.');
+    return;
+  }
 
+  if (isNaN(Number(unitsNeeded)) || Number(unitsNeeded) <= 0) {
+    Alert.alert('Error', 'Units Needed must be a positive number.');
+    return;
+  }
 
-    const formattedRequiredBy = requiredBy.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
-    const requestedAt = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); // Current time
+  if (patientAge && (isNaN(Number(patientAge)) || Number(patientAge) <= 0)) {
+    Alert.alert('Error', 'Patient Age must be a positive number or left empty.');
+    return;
+  }
 
-    const newRequest = {
-      id: Math.random().toString(36).substring(2, 10), // Simple unique ID
-      name: requestorName,
-      bloodGroup: bloodGroup,
-      location: location,
-      contact: contact,
-      urgency: urgency,
-      hospital: hospital,
-      patientAge: patientAge || null, // Optional
-      requiredBy: formattedRequiredBy,
-      unitsNeeded: unitsNeeded,
-      notes: notes, // Optional
-      requestedAt: requestedAt, // Storing current time
-      status: 'Active' // Default status
-    };
+  const formattedRequiredBy = requiredBy.toISOString().split('T')[0]; // YYYY-MM-DD
 
-    console.log('New Blood Request:', newRequest);
-    Alert.alert('Success', 'Blood request submitted successfully!', [
-        { text: 'OK', onPress: () => {
-            // You can navigate or perform other actions after successful submission
-            // For example, navigate back to a dashboard or show a confirmation screen
-            // navigation.navigate('RecipientDashboard'); // if you want to navigate
-        }}
-    ]);
-
-    // Clear form after submission
-    setRequestorName('');
-    setBloodGroup('');
-    setContact('');
-    setLocation('');
-    setHospital('');
-    setPatientAge('');
-    setUnitsNeeded('');
-    setUrgency('Normal');
-    setRequiredBy(new Date());
-    setNotes('');
+  const payload = {
+    name: requestorName,
+    bloodGroup: bloodGroup,
+    contact,
+    location,
+    hospital,
+    patientAge: patientAge || null,
+    unitsNeeded: unitsNeeded,
+    urgency,
+    requiredBy: formattedRequiredBy,
+    notes,
   };
+
+  try {
+    const response = await fetch('http://192.168.2.109:8000/api/requests/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // Include auth headers if needed, e.g. Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.ok) {
+      Alert.alert('Success', 'Blood request submitted successfully!', [
+        {
+          text: 'OK',
+          onPress: () => {
+            // Optional: Navigate or reset state
+          },
+        },
+      ]);
+
+      // Clear form after submission
+      setRequestorName('');
+      setBloodGroup('');
+      setContact('');
+      setLocation('');
+      setHospital('');
+      setPatientAge('');
+      setUnitsNeeded('');
+      setUrgency('Normal');
+      setRequiredBy(new Date());
+      setNotes('');
+    } else {
+      const errorData = await response.json();
+      console.error('Submission failed:', errorData);
+      Alert.alert('Error', 'Failed to submit request. Please try again.');
+    }
+  } catch (error) {
+    console.error('Network error:', error);
+    Alert.alert('Error', 'Network error. Please check your connection.');
+  }
+};
 
   const selectBloodGroup = (group) => {
     setBloodGroup(group);
