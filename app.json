@@ -1,34 +1,45 @@
 {
   "expo": {
-    "name": "blood-bridge-js",
+    "name": "BloodBridge",
     "slug": "blood-bridge-js",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "description": "A comprehensive blood donation platform connecting donors with recipients in real-time",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.emon3234.bloodbridge"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
-      "package": "com.emon3234.bloodbridge"
+      "package": "com.emon3234.bloodbridge",
+      "versionCode": 1,
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "privacy": "public",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "extra": {
       "eas": {
-        "projectId": "dcf0653b-d337-4ef4-9596-42f272606d78"
+        "projectId": "6578cdbc-2a7a-48d2-98e7-4d81208fea05"
       }
     }
   }

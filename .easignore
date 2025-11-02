@@ -1,0 +1,3 @@
+# Ignore local Android/iOS folders - let EAS generate them
+android/
+ios/

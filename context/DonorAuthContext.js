@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '../config/api';
 
 // Create the context for donor authentication
 const DonorAuthContext = createContext();
@@ -30,7 +31,7 @@ export const DonorAuthProvider = ({ children }) => {
 
   const login = async (phone, password) => {
     try {
-      const response = await fetch('http://192.168.2.109:8000/api/donors/login/', {
+      const response = await fetch(`${API_BASE_URL}/api/donors/login/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contact: phone, password }),
@@ -58,7 +59,7 @@ export const DonorAuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       // Optionally call your backend logout endpoint here if you have one
-      // await fetch('http://192.168.2.109:8000/api/donors/logout/', { method: 'POST', headers: { Authorization: `Token ${currentDonor.token}` }});
+      // await fetch(`${API_BASE_URL}/api/donors/logout/`, { method: 'POST', headers: { Authorization: `Token ${currentDonor.token}` }});
 
       await AsyncStorage.removeItem('donor'); // Remove from storage
       setCurrentDonor(null); // Clear state
