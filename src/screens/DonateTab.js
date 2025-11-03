@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,7 @@ export default function DonateTab() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const scrollViewRef = useRef(null);
   
   // Units donation modal
   const [unitsModalVisible, setUnitsModalVisible] = useState(false);
@@ -157,10 +158,20 @@ export default function DonateTab() {
   };
 
   const loadMore = () => {
-    if (!loadingMore && nextPageUrl) {
+    if (!loadingMore && nextPageUrl && !loading) {
       const nextPage = currentPage + 1;
       setCurrentPage(nextPage);
       fetchRequests(false, nextPage);
+    }
+  };
+
+  const handleScroll = (event) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const paddingToBottom = 100; // Trigger earlier for better UX
+    const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
+    
+    if (isCloseToBottom && !loadingMore && nextPageUrl) {
+      loadMore();
     }
   };
 
@@ -344,6 +355,14 @@ export default function DonateTab() {
     );
   }
 
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#E53935" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -352,6 +371,7 @@ export default function DonateTab() {
       </View>
 
       <ScrollView 
+        ref={scrollViewRef}
         style={styles.content} 
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -362,6 +382,8 @@ export default function DonateTab() {
             tintColor="#E53935"
           />
         }
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
       >
         {/* Search Filters */}
         <View style={styles.searchContainer}>
@@ -436,123 +458,111 @@ export default function DonateTab() {
         </View>
 
         {/* Blood Requests List */}
-        <ScrollView 
-          style={styles.requestsContainer}
-          onScroll={({ nativeEvent }) => {
-            const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
-            const paddingToBottom = 20;
-            if (layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom) {
-              loadMore();
-            }
-          }}
-          scrollEventThrottle={400}
-        >
-          {filteredRequests.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyIcon}>🩸</Text>
-              <Text style={styles.emptyText}>No requests found</Text>
-              <Text style={styles.emptySubtext}>
-                Try adjusting your filters or check back later
-              </Text>
-            </View>
-          ) : (
-            <>
-              {filteredRequests.map((request) => (
-                <View key={request.id} style={styles.requestCard}>
-                <View style={styles.requestHeader}>
-                  <View
-                    style={[
-                      styles.urgencyBadge,
-                      { backgroundColor: getUrgencyColor(request.urgency) },
-                    ]}
-                  >
-                    <Text style={styles.urgencyBadgeText}>
-                      {request.urgency?.toUpperCase() || 'NORMAL'}
-                    </Text>
-                  </View>
-                  <View style={styles.bloodTypeBadge}>
-                    <Text style={styles.bloodTypeBadgeText}>{request.bloodGroup}</Text>
-                  </View>
+        {filteredRequests.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyIcon}>🩸</Text>
+            <Text style={styles.emptyText}>No requests found</Text>
+            <Text style={styles.emptySubtext}>
+              Try adjusting your filters or check back later
+            </Text>
+          </View>
+        ) : (
+          <>
+            {filteredRequests.map((request) => (
+              <View key={request.id} style={styles.requestCard}>
+            <View style={styles.requestHeader}>
+              <View
+                style={[
+                  styles.urgencyBadge,
+                  { backgroundColor: getUrgencyColor(request.urgency) },
+                ]}
+                >
+                  <Text style={styles.urgencyBadgeText}>
+                    {request.urgency?.toUpperCase() || 'NORMAL'}
+                  </Text>
                 </View>
-
-                <Text style={styles.patientName}>Patient: {request.name}</Text>
-                <Text style={styles.hospitalName}>{request.hospital}</Text>
-                <Text style={styles.hospitalAddress}>📍 {request.location}</Text>
-
-                <View style={styles.requestDetails}>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Units Needed:</Text>
-                    <Text style={styles.detailValue}>{request.unitsNeeded || 'N/A'}</Text>
-                  </View>
-                  {request.patientAge && (
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Patient Age:</Text>
-                      <Text style={styles.detailValue}>{request.patientAge} years</Text>
-                    </View>
-                  )}
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Contact:</Text>
-                    <Text style={styles.detailValue}>{request.contact}</Text>
-                  </View>
-                  {request.requiredBy && (
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Required By:</Text>
-                      <Text style={styles.detailValue}>
-                        {new Date(request.requiredBy).toLocaleDateString()}
-                      </Text>
-                    </View>
-                  )}
-                  {request.notes && (
-                    <View style={styles.descriptionBox}>
-                      <Text style={styles.descriptionLabel}>Notes:</Text>
-                      <Text style={styles.descriptionText}>{request.notes}</Text>
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.buttonRow}>
-                  <TouchableOpacity
-                    style={styles.viewDetailsButton}
-                    onPress={() => {
-                      setSelectedRequest(request);
-                      setModalVisible(true);
-                    }}
-                  >
-                    <Text style={styles.viewDetailsButtonText}>ℹ️ View Details</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={[
-                      styles.respondButton,
-                      { backgroundColor: getUrgencyColor(request.urgency) },
-                    ]}
-                    onPress={() => handleRespond(request.id, request.unitsNeeded)}
-                  >
-                    <Text style={styles.respondButtonText}>
-                      {user ? '❤️ Donate' : '🔒 Login'}
-                    </Text>
-                  </TouchableOpacity>
+                <View style={styles.bloodTypeBadge}>
+                  <Text style={styles.bloodTypeBadgeText}>{request.bloodGroup}</Text>
                 </View>
               </View>
-              ))}
-              
-              {/* Loading More Indicator */}
-              {loadingMore && (
-                <>
-                  <SkeletonRequestCard />
-                  <SkeletonRequestCard />
-                </>
-              )}
-              
-              {/* End of Results */}
-              {!nextPageUrl && filteredRequests.length > 0 && (
-                <View style={styles.endOfResults}>
-                  <Text style={styles.endOfResultsText}>No more requests</Text>
+
+              <Text style={styles.patientName}>Patient: {request.name}</Text>
+              <Text style={styles.hospitalName}>{request.hospital}</Text>
+              <Text style={styles.hospitalAddress}>📍 {request.location}</Text>
+
+              <View style={styles.requestDetails}>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Units Needed:</Text>
+                  <Text style={styles.detailValue}>{request.unitsNeeded || 'N/A'}</Text>
                 </View>
-              )}
-            </>
-          )}
-        </ScrollView>
+                {request.patientAge && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Patient Age:</Text>
+                    <Text style={styles.detailValue}>{request.patientAge} years</Text>
+                  </View>
+                )}
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Contact:</Text>
+                  <Text style={styles.detailValue}>{request.contact}</Text>
+                </View>
+                {request.requiredBy && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Required By:</Text>
+                    <Text style={styles.detailValue}>
+                      {new Date(request.requiredBy).toLocaleDateString()}
+                    </Text>
+                  </View>
+                )}
+                {request.notes && (
+                  <View style={styles.descriptionBox}>
+                    <Text style={styles.descriptionLabel}>Notes:</Text>
+                    <Text style={styles.descriptionText}>{request.notes}</Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.buttonRow}>
+                <TouchableOpacity
+                  style={styles.viewDetailsButton}
+                  onPress={() => {
+                    setSelectedRequest(request);
+                    setModalVisible(true);
+                  }}
+                >
+                  <Text style={styles.viewDetailsButtonText}>ℹ️ View Details</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.respondButton,
+                    { backgroundColor: getUrgencyColor(request.urgency) },
+                  ]}
+                  onPress={() => handleRespond(request.id, request.unitsNeeded)}
+                >
+                  <Text style={styles.respondButtonText}>
+                    {user ? '❤️ Donate' : '🔒 Login'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            ))}
+            
+            {/* Loading More Indicator */}
+            {loadingMore && (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color="#E53935" />
+                <Text style={styles.loadingText}>Loading more...</Text>
+              </View>
+            )}
+            
+            {/* End of Results */}
+            {!nextPageUrl && filteredRequests.length > 0 && (
+              <View style={styles.endOfResults}>
+                <Text style={styles.endOfResultsText}>No more requests</Text>
+              </View>
+            )}
+          </>
+        )}
 
         <View style={{ height: 30 }} />
       </ScrollView>
@@ -1310,6 +1320,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     fontStyle: 'italic',
+  },
+  footerLoader: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: '#666',
   },
   // Additional Modal Styles
   sectionHeaderContainer: {

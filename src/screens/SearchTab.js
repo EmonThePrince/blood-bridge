@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -30,17 +30,42 @@ export default function SearchTab() {
     bloodGroup: '',
     location: '',
   });
+  const [searchTimeout, setSearchTimeout] = useState(null);
+  const scrollViewRef = useRef(null);
 
   const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
-  // Refresh data when tab is focused
+  // Refresh data when tab is focused (initial load only)
   useFocusEffect(
     useCallback(() => {
       fetchDonors(true);
-    }, [filters])
+    }, [])
   );
 
-  const fetchDonors = async (reset = false) => {
+  // Auto-search when filters change (debounced for location, immediate for blood group)
+  useEffect(() => {
+    // Skip initial render
+    if (loading && donors.length === 0) return;
+    
+    // Clear existing timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    
+    // Trigger search
+    const timeout = setTimeout(() => {
+      setCurrentPage(1);
+      fetchDonors(true);
+    }, 500); // 500ms delay for smooth UX
+    
+    setSearchTimeout(timeout);
+    
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [filters.bloodGroup, filters.location]);
+
+  const fetchDonors = async (reset = false, pageToFetch = null) => {
     if (reset) {
       setLoading(true);
       setCurrentPage(1);
@@ -51,15 +76,20 @@ export default function SearchTab() {
     try {
       const token = await AsyncStorage.getItem('token');
       
+      // Use provided page or current page
+      const page = pageToFetch || (reset ? 1 : currentPage);
+      
       // Build URL with filters and pagination
-      let url = `${API_BASE_URL}/api/donors/?page=${reset ? 1 : currentPage}`;
+      let url = `${API_BASE_URL}/api/donors/?page=${page}`;
       
       if (filters.bloodGroup) {
-        url += `&bloodGroup=${filters.bloodGroup}`;
+        url += `&bloodGroup=${encodeURIComponent(filters.bloodGroup)}`;
       }
-      if (filters.location) {
-        url += `&location=${filters.location}`;
+      if (filters.location && filters.location.trim()) {
+        url += `&location=${encodeURIComponent(filters.location.trim())}`;
       }
+      
+      console.log('Fetching donors with URL:', url); // Debug log
       
       const response = await fetch(url, {
         headers: { Authorization: token ? `Token ${token}` : '' },
@@ -67,6 +97,8 @@ export default function SearchTab() {
 
       if (response.ok) {
         const data = await response.json();
+        
+        console.log('Donors response:', data); // Debug log
         
         // Handle paginated response
         if (reset) {
@@ -79,6 +111,8 @@ export default function SearchTab() {
         
         setNextPageUrl(data.next);
       } else {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
         Alert.alert('Error', 'Failed to load donors. Please try again.');
       }
     } catch (error) {
@@ -98,9 +132,20 @@ export default function SearchTab() {
   };
 
   const loadMore = () => {
-    if (!loadingMore && nextPageUrl) {
-      setCurrentPage(prev => prev + 1);
-      fetchDonors(false);
+    if (!loadingMore && nextPageUrl && !loading) {
+      const nextPage = currentPage + 1;
+      setCurrentPage(nextPage);
+      fetchDonors(false, nextPage);
+    }
+  };
+
+  const handleScroll = (event) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const paddingToBottom = 100; // Trigger earlier for better UX
+    const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
+    
+    if (isCloseToBottom && !loadingMore && nextPageUrl) {
+      loadMore();
     }
   };
 
@@ -115,8 +160,14 @@ export default function SearchTab() {
 
   const clearFilters = () => {
     setFilters({ bloodGroup: '', location: '' });
-    setCurrentPage(1);
-    fetchDonors(true);
+  };
+
+  const handleLocationChange = (text) => {
+    setFilters({ ...filters, location: text });
+  };
+
+  const handleBloodGroupChange = (bloodGroup) => {
+    setFilters({ ...filters, bloodGroup });
   };
 
   const SkeletonCard = () => (
@@ -129,6 +180,14 @@ export default function SearchTab() {
       </View>
     </View>
   );
+
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#E53935" />
+      </View>
+    );
+  }
 
   if (loading) {
     return (
@@ -155,11 +214,7 @@ export default function SearchTab() {
               styles.filterChip,
               !filters.bloodGroup && styles.filterChipActive,
             ]}
-            onPress={() => {
-              setFilters({ ...filters, bloodGroup: '' });
-              setCurrentPage(1);
-              setTimeout(() => fetchDonors(true), 100);
-            }}
+            onPress={() => handleBloodGroupChange('')}
           >
             <Text
               style={[
@@ -177,11 +232,7 @@ export default function SearchTab() {
                 styles.filterChip,
                 filters.bloodGroup === type && styles.filterChipActive,
               ]}
-              onPress={() => {
-                setFilters({ ...filters, bloodGroup: type });
-                setCurrentPage(1);
-                setTimeout(() => fetchDonors(true), 100);
-              }}
+              onPress={() => handleBloodGroupChange(type)}
             >
               <Text
                 style={[
@@ -200,7 +251,8 @@ export default function SearchTab() {
           style={styles.searchInput}
           placeholder="Search by location..."
           value={filters.location}
-          onChangeText={(text) => setFilters({ ...filters, location: text })}
+          onChangeText={handleLocationChange}
+          returnKeyType="search"
         />
 
         {(filters.bloodGroup || filters.location) && (
@@ -211,7 +263,9 @@ export default function SearchTab() {
       </View>
 
       <ScrollView 
+        ref={scrollViewRef}
         style={styles.donorList}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -220,14 +274,8 @@ export default function SearchTab() {
             tintColor="#E53935"
           />
         }
-        onScroll={({ nativeEvent }) => {
-          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
-          const paddingToBottom = 20;
-          if (layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom) {
-            loadMore();
-          }
-        }}
-        scrollEventThrottle={400}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
       >
         {filteredDonors.length === 0 ? (
           <View style={styles.emptyContainer}>
@@ -276,10 +324,10 @@ export default function SearchTab() {
             
             {/* Loading More Indicator */}
             {loadingMore && (
-              <>
-                <SkeletonCard />
-                <SkeletonCard />
-              </>
+              <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color="#E53935" />
+                <Text style={styles.loadingText}>Loading more...</Text>
+              </View>
             )}
             
             {/* End of Results */}
@@ -821,5 +869,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     fontStyle: 'italic',
+  },
+  footerLoader: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: '#666',
   },
 });
