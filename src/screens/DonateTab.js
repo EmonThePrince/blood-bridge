@@ -23,12 +23,10 @@ export default function DonateTab() {
   const { user, loadUser } = useAuth();
   const [requests, setRequests] = useState([]);
   const [filteredRequests, setFilteredRequests] = useState([]);
-  const [displayedRequests, setDisplayedRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [nextPageUrl, setNextPageUrl] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -49,48 +47,64 @@ export default function DonateTab() {
   // Refresh data when tab is focused
   useFocusEffect(
     useCallback(() => {
-      fetchRequests();
-    }, [])
+      fetchRequests(true);
+    }, [searchBloodType, searchLocation, urgencyFilter])
   );
 
   useEffect(() => {
     // Auto-select user's blood type and location on first load
     if (user) {
-      if (user.bloodGroup) {
+      if (user.bloodGroup && searchBloodType === 'all') {
         setSearchBloodType(user.bloodGroup);
       }
-      if (user.location) {
+      if (user.location && !searchLocation) {
         setSearchLocation(user.location);
       }
     }
   }, [user]);
 
-  useEffect(() => {
-    applyFilters();
-  }, [requests, searchBloodType, searchLocation, urgencyFilter]);
+  const fetchRequests = async (reset = false) => {
+    if (reset) {
+      setLoading(true);
+      setCurrentPage(1);
+    } else {
+      setLoadingMore(true);
+    }
 
-  useEffect(() => {
-    // Update displayed requests when filteredRequests or page changes
-    const startIndex = 0;
-    const endIndex = page * ITEMS_PER_PAGE;
-    setDisplayedRequests(filteredRequests.slice(startIndex, endIndex));
-    setHasMore(endIndex < filteredRequests.length);
-  }, [filteredRequests, page]);
-
-  const fetchRequests = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
       
-      const response = await fetch(`${API_BASE_URL}/api/requests/`, {
+      // Build URL with filters and pagination
+      let url = `${API_BASE_URL}/api/requests/?page=${reset ? 1 : currentPage}&status=Active`;
+      
+      if (searchBloodType && searchBloodType !== 'all') {
+        url += `&bloodGroup=${searchBloodType}`;
+      }
+      if (searchLocation) {
+        url += `&location=${searchLocation}`;
+      }
+      if (urgencyFilter && urgencyFilter !== 'all') {
+        url += `&urgency=${urgencyFilter}`;
+      }
+      
+      const response = await fetch(url, {
         headers: { Authorization: token ? `Token ${token}` : '' },
       });
 
-      
       if (response.ok) {
         const data = await response.json();
-        setRequests(data);
+        
+        // Handle paginated response
+        if (reset) {
+          setRequests(data.results || []);
+          setFilteredRequests(data.results || []);
+        } else {
+          setRequests(prev => [...prev, ...(data.results || [])]);
+          setFilteredRequests(prev => [...prev, ...(data.results || [])]);
+        }
+        
+        setNextPageUrl(data.next);
       } else {
-        const errorText = await response.text();
         Alert.alert('Error', 'Failed to load blood requests. Please try again.');
       }
     } catch (error) {
@@ -99,49 +113,29 @@ export default function DonateTab() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
   };
 
-  const applyFilters = () => {
-    let filtered = [...requests];
+  const onRefresh = () => {
+    setRefreshing(true);
+    setCurrentPage(1);
+    fetchRequests(true);
+  };
 
-    // Filter by blood type
-    if (searchBloodType && searchBloodType !== 'all') {
-      filtered = filtered.filter(req => req.bloodGroup === searchBloodType);
+  const loadMore = () => {
+    if (!loadingMore && nextPageUrl) {
+      setCurrentPage(prev => prev + 1);
+      fetchRequests(false);
     }
-
-    // Filter by location
-    if (searchLocation.trim()) {
-      const searchTerm = searchLocation.toLowerCase();
-      filtered = filtered.filter(req => 
-        req.location?.toLowerCase().includes(searchTerm) ||
-        req.hospital?.toLowerCase().includes(searchTerm)
-      );
-    }
-
-    // Filter by urgency
-    if (urgencyFilter !== 'all') {
-      filtered = filtered.filter(req => req.urgency === urgencyFilter);
-    }
-
-    setFilteredRequests(filtered);
   };
 
   const handleClearFilters = () => {
     setSearchBloodType(user?.bloodGroup || 'all');
     setSearchLocation(user?.location || '');
     setUrgencyFilter('all');
-    setPage(1); // Reset pagination
-  };
-
-  const loadMore = () => {
-    if (!loadingMore && hasMore) {
-      setLoadingMore(true);
-      setTimeout(() => {
-        setPage(prevPage => prevPage + 1);
-        setLoadingMore(false);
-      }, 300); // Small delay for smooth UX
-    }
+    setCurrentPage(1);
+    fetchRequests(true);
   };
 
   const SkeletonRequestCard = () => (
@@ -155,11 +149,6 @@ export default function DonateTab() {
       <View style={[styles.skeletonLine, { width: '80%', marginTop: 8 }]} />
     </View>
   );
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchRequests();
-  };
 
   const handleRespond = async (requestId, maxUnits) => {
     if (!user) {
@@ -299,7 +288,18 @@ export default function DonateTab() {
         <Text style={styles.subtitle}>Help save lives by donating blood</Text>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#E53935']}
+            tintColor="#E53935"
+          />
+        }
+      >
         {/* Search Filters */}
         <View style={styles.searchContainer}>
           <Text style={styles.searchTitle}>🔍 Filter Requests</Text>
@@ -393,7 +393,7 @@ export default function DonateTab() {
             </View>
           ) : (
             <>
-              {displayedRequests.map((request) => (
+              {filteredRequests.map((request) => (
                 <View key={request.id} style={styles.requestCard}>
                 <View style={styles.requestHeader}>
                   <View
@@ -481,7 +481,7 @@ export default function DonateTab() {
               )}
               
               {/* End of Results */}
-              {!hasMore && displayedRequests.length > 0 && (
+              {!nextPageUrl && filteredRequests.length > 0 && (
                 <View style={styles.endOfResults}>
                   <Text style={styles.endOfResultsText}>No more requests</Text>
                 </View>

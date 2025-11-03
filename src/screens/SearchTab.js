@@ -10,6 +10,7 @@ import {
   Linking,
   Alert,
   Modal,
+  RefreshControl,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -18,12 +19,11 @@ import { API_BASE_URL } from '../config';
 export default function SearchTab() {
   const [donors, setDonors] = useState([]);
   const [filteredDonors, setFilteredDonors] = useState([]);
-  const [displayedDonors, setDisplayedDonors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [nextPageUrl, setNextPageUrl] = useState(null);
   const [selectedDonor, setSelectedDonor] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [filters, setFilters] = useState({
@@ -36,37 +36,49 @@ export default function SearchTab() {
   // Refresh data when tab is focused
   useFocusEffect(
     useCallback(() => {
-      fetchDonors();
-    }, [])
+      fetchDonors(true);
+    }, [filters])
   );
 
-  useEffect(() => {
-    applyFilters();
-  }, [filters, donors]);
+  const fetchDonors = async (reset = false) => {
+    if (reset) {
+      setLoading(true);
+      setCurrentPage(1);
+    } else {
+      setLoadingMore(true);
+    }
 
-  useEffect(() => {
-    // Update displayed donors when filteredDonors or page changes
-    const startIndex = 0;
-    const endIndex = page * ITEMS_PER_PAGE;
-    setDisplayedDonors(filteredDonors.slice(startIndex, endIndex));
-    setHasMore(endIndex < filteredDonors.length);
-  }, [filteredDonors, page]);
-
-  const fetchDonors = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
       
-      const response = await fetch(`${API_BASE_URL}/api/donors/`, {
+      // Build URL with filters and pagination
+      let url = `${API_BASE_URL}/api/donors/?page=${reset ? 1 : currentPage}`;
+      
+      if (filters.bloodGroup) {
+        url += `&bloodGroup=${filters.bloodGroup}`;
+      }
+      if (filters.location) {
+        url += `&location=${filters.location}`;
+      }
+      
+      const response = await fetch(url, {
         headers: { Authorization: token ? `Token ${token}` : '' },
       });
 
-
       if (response.ok) {
         const data = await response.json();
-        setDonors(data);
-        setFilteredDonors(data);
+        
+        // Handle paginated response
+        if (reset) {
+          setDonors(data.results || []);
+          setFilteredDonors(data.results || []);
+        } else {
+          setDonors(prev => [...prev, ...(data.results || [])]);
+          setFilteredDonors(prev => [...prev, ...(data.results || [])]);
+        }
+        
+        setNextPageUrl(data.next);
       } else {
-        const errorText = await response.text();
         Alert.alert('Error', 'Failed to load donors. Please try again.');
       }
     } catch (error) {
@@ -74,23 +86,22 @@ export default function SearchTab() {
       Alert.alert('Error', 'Network error. Please check your connection.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
     }
   };
 
-  const applyFilters = () => {
-    let filtered = donors;
+  const onRefresh = () => {
+    setRefreshing(true);
+    setCurrentPage(1);
+    fetchDonors(true);
+  };
 
-    if (filters.bloodGroup) {
-      filtered = filtered.filter((donor) => donor.bloodGroup === filters.bloodGroup);
+  const loadMore = () => {
+    if (!loadingMore && nextPageUrl) {
+      setCurrentPage(prev => prev + 1);
+      fetchDonors(false);
     }
-
-    if (filters.location) {
-      filtered = filtered.filter((donor) =>
-        donor.location?.toLowerCase().includes(filters.location.toLowerCase())
-      );
-    }
-
-    setFilteredDonors(filtered);
   };
 
   const handleCall = (phone) => {
@@ -104,17 +115,8 @@ export default function SearchTab() {
 
   const clearFilters = () => {
     setFilters({ bloodGroup: '', location: '' });
-    setPage(1); // Reset pagination
-  };
-
-  const loadMore = () => {
-    if (!loadingMore && hasMore) {
-      setLoadingMore(true);
-      setTimeout(() => {
-        setPage(prevPage => prevPage + 1);
-        setLoadingMore(false);
-      }, 300); // Small delay for smooth UX
-    }
+    setCurrentPage(1);
+    fetchDonors(true);
   };
 
   const SkeletonCard = () => (
@@ -153,7 +155,11 @@ export default function SearchTab() {
               styles.filterChip,
               !filters.bloodGroup && styles.filterChipActive,
             ]}
-            onPress={() => setFilters({ ...filters, bloodGroup: '' })}
+            onPress={() => {
+              setFilters({ ...filters, bloodGroup: '' });
+              setCurrentPage(1);
+              setTimeout(() => fetchDonors(true), 100);
+            }}
           >
             <Text
               style={[
@@ -171,7 +177,11 @@ export default function SearchTab() {
                 styles.filterChip,
                 filters.bloodGroup === type && styles.filterChipActive,
               ]}
-              onPress={() => setFilters({ ...filters, bloodGroup: type })}
+              onPress={() => {
+                setFilters({ ...filters, bloodGroup: type });
+                setCurrentPage(1);
+                setTimeout(() => fetchDonors(true), 100);
+              }}
             >
               <Text
                 style={[
@@ -202,6 +212,14 @@ export default function SearchTab() {
 
       <ScrollView 
         style={styles.donorList}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#E53935']}
+            tintColor="#E53935"
+          />
+        }
         onScroll={({ nativeEvent }) => {
           const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
           const paddingToBottom = 20;
@@ -218,7 +236,7 @@ export default function SearchTab() {
           </View>
         ) : (
           <>
-            {displayedDonors.map((donor) => (
+            {filteredDonors.map((donor) => (
               <TouchableOpacity 
                 key={donor.id} 
                 style={styles.donorCard}
@@ -265,7 +283,7 @@ export default function SearchTab() {
             )}
             
             {/* End of Results */}
-            {!hasMore && displayedDonors.length > 0 && (
+            {!nextPageUrl && filteredDonors.length > 0 && (
               <View style={styles.endOfResults}>
                 <Text style={styles.endOfResultsText}>No more donors</Text>
               </View>
