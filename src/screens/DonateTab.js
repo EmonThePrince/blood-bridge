@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../config';
+import BloodDropLoader from '../components/BloodDropLoader';
 
 export default function DonateTab() {
   const navigation = useNavigation();
@@ -391,7 +392,8 @@ export default function DonateTab() {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#E53935" />
+        <BloodDropLoader size={80} />
+        <Text style={styles.loadingText}>Loading blood requests...</Text>
       </View>
     );
   }
@@ -399,7 +401,8 @@ export default function DonateTab() {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#E53935" />
+        <BloodDropLoader size={80} />
+        <Text style={styles.loadingText}>Loading blood requests...</Text>
       </View>
     );
   }
@@ -591,8 +594,8 @@ export default function DonateTab() {
             {/* Loading More Indicator */}
             {loadingMore && (
               <View style={styles.footerLoader}>
-                <ActivityIndicator size="small" color="#E53935" />
-                <Text style={styles.loadingText}>Loading more...</Text>
+                <BloodDropLoader size={40} />
+                <Text style={styles.loadingMoreText}>Loading more requests...</Text>
               </View>
             )}
             
@@ -1368,9 +1371,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   loadingText: {
-    marginTop: 10,
+    marginTop: 12,
+    fontSize: 16,
+    color: '#E53935',
+    fontWeight: '600',
+  },
+  loadingMoreText: {
+    marginTop: 8,
     fontSize: 14,
     color: '#666',
+    fontWeight: '500',
   },
   // Additional Modal Styles
   sectionHeaderContainer: {

@@ -15,6 +15,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { API_BASE_URL } from '../config';
+import BloodDropLoader from '../components/BloodDropLoader';
 
 export default function SearchTab() {
   const [donors, setDonors] = useState([]);
@@ -215,7 +216,8 @@ export default function SearchTab() {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#E53935" />
+        <BloodDropLoader size={80} />
+        <Text style={styles.loadingText}>Finding donors...</Text>
       </View>
     );
   }
@@ -223,7 +225,8 @@ export default function SearchTab() {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#E53935" />
+        <BloodDropLoader size={80} />
+        <Text style={styles.loadingText}>Finding donors...</Text>
       </View>
     );
   }
@@ -356,8 +359,8 @@ export default function SearchTab() {
             {/* Loading More Indicator */}
             {loadingMore && (
               <View style={styles.footerLoader}>
-                <ActivityIndicator size="small" color="#E53935" />
-                <Text style={styles.loadingText}>Loading more...</Text>
+                <BloodDropLoader size={40} />
+                <Text style={styles.loadingMoreText}>Loading more donors...</Text>
               </View>
             )}
             
@@ -1220,8 +1223,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   loadingText: {
-    marginTop: 10,
+    marginTop: 12,
+    fontSize: 16,
+    color: '#E53935',
+    fontWeight: '600',
+  },
+  loadingMoreText: {
+    marginTop: 8,
     fontSize: 14,
     color: '#666',
+    fontWeight: '500',
   },
 });
