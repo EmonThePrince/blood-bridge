@@ -40,16 +40,40 @@ export default function DonateTab() {
   const [searchBloodType, setSearchBloodType] = useState('all');
   const [searchLocation, setSearchLocation] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState('all');
+  const [searchTimeout, setSearchTimeout] = useState(null);
 
   const bloodTypes = ['all', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
   const urgencyLevels = ['all', 'Critical', 'Urgent', 'High', 'Medium', 'Low', 'Normal'];
 
-  // Refresh data when tab is focused
+  // Refresh data when tab is focused (initial load only)
   useFocusEffect(
     useCallback(() => {
       fetchRequests(true);
-    }, [searchBloodType, searchLocation, urgencyFilter])
+    }, [])
   );
+
+  // Auto-search when filters change
+  useEffect(() => {
+    // Skip initial render
+    if (loading && requests.length === 0) return;
+    
+    // Clear existing timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    
+    // Trigger search
+    const timeout = setTimeout(() => {
+      setCurrentPage(1);
+      fetchRequests(true);
+    }, 500); // 500ms delay for smooth UX
+    
+    setSearchTimeout(timeout);
+    
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [searchBloodType, searchLocation, urgencyFilter]);
 
   useEffect(() => {
     // Auto-select user's blood type and location on first load
@@ -63,7 +87,7 @@ export default function DonateTab() {
     }
   }, [user]);
 
-  const fetchRequests = async (reset = false) => {
+  const fetchRequests = async (reset = false, pageToFetch = null) => {
     if (reset) {
       setLoading(true);
       setCurrentPage(1);
@@ -74,18 +98,23 @@ export default function DonateTab() {
     try {
       const token = await AsyncStorage.getItem('token');
       
+      // Use provided page or current page
+      const page = pageToFetch || (reset ? 1 : currentPage);
+      
       // Build URL with filters and pagination
-      let url = `${API_BASE_URL}/api/requests/?page=${reset ? 1 : currentPage}&status=Active`;
+      let url = `${API_BASE_URL}/api/requests/?page=${page}&status=Active`;
       
       if (searchBloodType && searchBloodType !== 'all') {
-        url += `&bloodGroup=${searchBloodType}`;
+        url += `&bloodGroup=${encodeURIComponent(searchBloodType)}`;
       }
-      if (searchLocation) {
-        url += `&location=${searchLocation}`;
+      if (searchLocation && searchLocation.trim()) {
+        url += `&location=${encodeURIComponent(searchLocation.trim())}`;
       }
       if (urgencyFilter && urgencyFilter !== 'all') {
-        url += `&urgency=${urgencyFilter}`;
+        url += `&urgency=${encodeURIComponent(urgencyFilter)}`;
       }
+      
+      console.log('Fetching requests with URL:', url); // Debug log
       
       const response = await fetch(url, {
         headers: { Authorization: token ? `Token ${token}` : '' },
@@ -93,6 +122,8 @@ export default function DonateTab() {
 
       if (response.ok) {
         const data = await response.json();
+        
+        console.log('Requests response:', data); // Debug log
         
         // Handle paginated response
         if (reset) {
@@ -105,6 +136,8 @@ export default function DonateTab() {
         
         setNextPageUrl(data.next);
       } else {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
         Alert.alert('Error', 'Failed to load blood requests. Please try again.');
       }
     } catch (error) {
@@ -125,8 +158,9 @@ export default function DonateTab() {
 
   const loadMore = () => {
     if (!loadingMore && nextPageUrl) {
-      setCurrentPage(prev => prev + 1);
-      fetchRequests(false);
+      const nextPage = currentPage + 1;
+      setCurrentPage(nextPage);
+      fetchRequests(false, nextPage);
     }
   };
 
@@ -134,8 +168,18 @@ export default function DonateTab() {
     setSearchBloodType(user?.bloodGroup || 'all');
     setSearchLocation(user?.location || '');
     setUrgencyFilter('all');
-    setCurrentPage(1);
-    fetchRequests(true);
+  };
+
+  const handleLocationChange = (text) => {
+    setSearchLocation(text);
+  };
+
+  const handleBloodTypeChange = (bloodType) => {
+    setSearchBloodType(bloodType);
+  };
+
+  const handleUrgencyChange = (urgency) => {
+    setUrgencyFilter(urgency);
   };
 
   const SkeletonRequestCard = () => (
@@ -203,6 +247,11 @@ export default function DonateTab() {
           onPress: async () => {
             try {
               const token = await AsyncStorage.getItem('token');
+              console.log('Sending donation request:', {
+                url: `${API_BASE_URL}/api/requests/${requestId}/donated/`,
+                unitsToDonate
+              });
+              
               const response = await fetch(
                 `${API_BASE_URL}/api/requests/${requestId}/donated/`,
                 {
@@ -217,9 +266,23 @@ export default function DonateTab() {
                 }
               );
 
-              const data = await response.json();
+              console.log('Response status:', response.status);
+              const responseText = await response.text();
+              console.log('Response text:', responseText);
+              
+              // Try to parse JSON
+              let data;
+              try {
+                data = JSON.parse(responseText);
+              } catch (e) {
+                console.error('Failed to parse response as JSON:', responseText);
+                Alert.alert('Error', 'Invalid response from server. Please try again.');
+                return;
+              }
 
               if (response.ok) {
+                console.log('Donation successful:', data);
+                
                 // Update user data in context and storage
                 if (data.donor) {
                   const updatedUser = {
@@ -237,16 +300,16 @@ export default function DonateTab() {
                 Alert.alert(
                   'Success! 🩸', 
                   data.message || 'Thank you for your donation!',
-                  [{ text: 'OK', onPress: () => fetchRequests() }]
+                  [{ text: 'OK', onPress: () => fetchRequests(true) }]
                 );
               } else {
                 const errorMessage = data.error || data.message || 'Failed to respond to request';
+                console.error('Donation failed:', data);
                 Alert.alert('Error', errorMessage);
-                console.error('Failed to donate:', data);
               }
             } catch (error) {
               console.error('Error donating:', error);
-              Alert.alert('Error', 'Network error. Please try again.');
+              Alert.alert('Error', `Network error: ${error.message}. Please try again.`);
             }
           },
         },
@@ -308,7 +371,7 @@ export default function DonateTab() {
           <View style={styles.pickerContainer}>
             <Picker
               selectedValue={searchBloodType}
-              onValueChange={setSearchBloodType}
+              onValueChange={handleBloodTypeChange}
               style={styles.picker}
             >
               {bloodTypes.map((type) => (
@@ -326,7 +389,8 @@ export default function DonateTab() {
             style={styles.input}
             placeholder="Enter city or hospital name"
             value={searchLocation}
-            onChangeText={setSearchLocation}
+            onChangeText={handleLocationChange}
+            returnKeyType="search"
           />
 
           <Text style={styles.label}>Urgency Level</Text>
@@ -343,7 +407,7 @@ export default function DonateTab() {
                   urgencyFilter === level && styles.urgencyButtonActive,
                   urgencyFilter === level && { backgroundColor: getUrgencyColor(level) },
                 ]}
-                onPress={() => setUrgencyFilter(level)}
+                onPress={() => handleUrgencyChange(level)}
               >
                 <Text
                   style={[
