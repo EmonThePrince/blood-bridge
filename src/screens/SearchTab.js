@@ -373,10 +373,11 @@ export default function SearchTab() {
 
       {/* Donor Details Modal - Modern UI */}
       <Modal
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
+        hardwareAccelerated={true}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -409,6 +410,7 @@ export default function SearchTab() {
                 style={styles.modalBodyModern} 
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.modalBodyContent}
+                nestedScrollEnabled={true}
               >
                 {/* Info Section Header */}
                 <View style={styles.sectionHeaderContainer}>
@@ -803,7 +805,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     width: '100%',
-    maxHeight: '80%',
+    maxHeight: '85%',
+    overflow: 'hidden', // Important for Android
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -997,7 +1000,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   modalBodyModern: {
-    flex: 1,
+    maxHeight: '100%', // Changed from flex: 1 for better Android compatibility
   },
   modalBodyContent: {
     padding: 18,
