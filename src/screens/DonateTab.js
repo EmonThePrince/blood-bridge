@@ -125,6 +125,7 @@ export default function DonateTab() {
         const data = await response.json();
         
         console.log('Requests response:', data); // Debug log
+        console.log('Next page URL:', data.next); // Debug: Check pagination
         
         // Handle paginated response
         if (reset) {
@@ -135,15 +136,50 @@ export default function DonateTab() {
           setFilteredRequests(prev => [...prev, ...(data.results || [])]);
         }
         
+        // Set next page URL (will be null if no more pages)
         setNextPageUrl(data.next);
+      } else if (response.status === 404) {
+        // 404 means we've reached the end of pagination or page doesn't exist
+        console.log('Reached end of results (404)');
+        setNextPageUrl(null); // Stop further pagination attempts
+        
+        // Don't show error for pagination 404s
+        if (reset) {
+          setRequests([]);
+          setFilteredRequests([]);
+        }
       } else {
         const errorText = await response.text();
-        console.error('Error response:', errorText);
-        Alert.alert('Error', 'Failed to load blood requests. Please try again.');
+        console.error('Error response:', response.status, errorText);
+        
+        let errorMessage = 'Failed to load blood requests. Please try again.';
+        if (response.status === 502 || response.status === 503 || response.status === 504) {
+          errorMessage = 'Server is temporarily unavailable. Please wait a moment and try again.';
+        } else if (response.status === 500) {
+          errorMessage = 'Server error occurred. Please try again later.';
+        }
+        
+        Alert.alert('Error', errorMessage);
+        
+        if (reset) {
+          setRequests([]);
+          setFilteredRequests([]);
+        }
       }
     } catch (error) {
       console.error('DonateTab - Error fetching requests:', error);
-      Alert.alert('Error', 'Network error. Please check your connection.');
+      
+      let errorMessage = 'Network error. Please check your connection.';
+      if (error.message.includes('timeout')) {
+        errorMessage = 'Connection timeout. The server might be slow or unavailable.';
+      }
+      
+      Alert.alert('Error', errorMessage);
+      
+      if (reset) {
+        setRequests([]);
+        setFilteredRequests([]);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -158,10 +194,14 @@ export default function DonateTab() {
   };
 
   const loadMore = () => {
+    console.log('loadMore called - loadingMore:', loadingMore, 'nextPageUrl:', nextPageUrl, 'loading:', loading);
     if (!loadingMore && nextPageUrl && !loading) {
       const nextPage = currentPage + 1;
+      console.log('Loading page:', nextPage);
       setCurrentPage(nextPage);
       fetchRequests(false, nextPage);
+    } else {
+      console.log('Skipping loadMore - conditions not met');
     }
   };
 
@@ -171,6 +211,7 @@ export default function DonateTab() {
     const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
     
     if (isCloseToBottom && !loadingMore && nextPageUrl) {
+      console.log('Scroll reached bottom, triggering loadMore');
       loadMore();
     }
   };
