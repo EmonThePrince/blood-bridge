@@ -340,7 +340,7 @@ export default function SearchTab() {
         )}
       </ScrollView>
 
-      {/* Donor Details Modal */}
+      {/* Donor Details Modal - Modern UI */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -349,161 +349,224 @@ export default function SearchTab() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Donor Details</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+            {/* Modern Header with Blood Type Badge */}
+            <View style={styles.modalHeaderModern}>
+              <TouchableOpacity 
+                style={styles.modalCloseIconButton}
+                onPress={() => setModalVisible(false)}
+              >
+                <Text style={styles.modalCloseIcon}>✕</Text>
               </TouchableOpacity>
+              
+              {selectedDonor && (
+                <View style={styles.modalHeaderContent}>
+                  <View style={styles.bloodTypeBadgeModern}>
+                    <Text style={styles.bloodTypeBadgeTextModern}>{selectedDonor.bloodGroup}</Text>
+                  </View>
+                  <Text style={styles.modalTitleModern}>{selectedDonor.name}</Text>
+                  {selectedDonor.availability === 'Available' && (
+                    <View style={styles.availablePillModern}>
+                      <Text style={styles.availablePillText}>✓ AVAILABLE NOW</Text>
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
 
             {selectedDonor && (
-              <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
-                <View style={styles.modalBloodTypeBadge}>
-                  <Text style={styles.modalBloodTypeText}>{selectedDonor.bloodGroup}</Text>
+              <ScrollView 
+                style={styles.modalBodyModern} 
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.modalBodyContent}
+              >
+                {/* Info Section Header */}
+                <View style={styles.sectionHeaderContainer}>
+                  <Text style={styles.sectionHeaderText}>Contact Information</Text>
+                  <View style={styles.sectionHeaderLine} />
                 </View>
 
-                <Text style={styles.modalDonorName}>{selectedDonor.name}</Text>
-                
-                <View style={styles.modalDetailSection}>
-                  <Text style={styles.sectionTitle}>Contact Information</Text>
-                  
-                  <View style={styles.modalDetailRow}>
-                    <Text style={styles.modalDetailLabel}>Phone:</Text>
-                    <Text style={styles.modalDetailValue}>{selectedDonor.contact}</Text>
+                {/* Phone Card */}
+                <View style={styles.modernCard}>
+                  <View style={styles.cardIconContainer}>
+                    <Text style={styles.cardIcon}>📞</Text>
                   </View>
-
-                  <View style={styles.modalDetailRow}>
-                    <Text style={styles.modalDetailLabel}>Location:</Text>
-                    <Text style={styles.modalDetailValue}>{selectedDonor.location}</Text>
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardLabel}>PHONE</Text>
+                    <Text style={styles.cardTitle}>{selectedDonor.contact}</Text>
+                    <TouchableOpacity 
+                      style={styles.quickCallButton}
+                      onPress={() => {
+                        handleCall(selectedDonor.contact);
+                      }}
+                    >
+                      <Text style={styles.quickCallButtonText}>📱 Quick Call</Text>
+                    </TouchableOpacity>
                   </View>
-
-                  {selectedDonor.emergencyContact && (
-                    <View style={styles.modalDetailRow}>
-                      <Text style={styles.modalDetailLabel}>🚨 Emergency Contact:</Text>
-                      <Text style={styles.modalDetailValue}>{selectedDonor.emergencyContact}</Text>
-                    </View>
-                  )}
                 </View>
 
-                <View style={styles.modalDetailSection}>
-                  <Text style={styles.sectionTitle}>Personal Details</Text>
-                  
-                  {selectedDonor.age && (
-                    <View style={styles.modalDetailRow}>
-                      <Text style={styles.modalDetailLabel}>👤 Age:</Text>
-                      <Text style={styles.modalDetailValue}>{selectedDonor.age} years</Text>
-                    </View>
-                  )}
-
-                  {selectedDonor.weight && (
-                    <View style={styles.modalDetailRow}>
-                      <Text style={styles.modalDetailLabel}>⚖️ Weight:</Text>
-                      <Text style={styles.modalDetailValue}>{selectedDonor.weight} kg</Text>
-                    </View>
-                  )}
-
-                  {selectedDonor.bloodPressure && (
-                    <View style={styles.modalDetailRow}>
-                      <Text style={styles.modalDetailLabel}>💓 Blood Pressure:</Text>
-                      <Text style={styles.modalDetailValue}>{selectedDonor.bloodPressure}</Text>
-                    </View>
-                  )}
+                {/* Location Card */}
+                <View style={styles.modernCard}>
+                  <View style={styles.cardIconContainer}>
+                    <Text style={styles.cardIcon}>📍</Text>
+                  </View>
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardLabel}>LOCATION</Text>
+                    <Text style={styles.cardTitle}>{selectedDonor.location}</Text>
+                  </View>
                 </View>
 
-                <View style={styles.modalDetailSection}>
-                  <Text style={styles.sectionTitle}>Donation History</Text>
-                  
-                  <View style={styles.modalDetailRow}>
-                    <Text style={styles.modalDetailLabel}>❤️ Total Donations:</Text>
-                    <Text style={styles.modalDetailValue}>
-                      {selectedDonor.donationCount || 0} {selectedDonor.donationCount === 1 ? 'time' : 'times'}
+                {/* Emergency Contact Card */}
+                {selectedDonor.emergencyContact && (
+                  <View style={styles.modernCard}>
+                    <View style={styles.cardIconContainer}>
+                      <Text style={styles.cardIcon}>🚨</Text>
+                    </View>
+                    <View style={styles.cardContent}>
+                      <Text style={styles.cardLabel}>EMERGENCY CONTACT</Text>
+                      <Text style={styles.cardTitle}>{selectedDonor.emergencyContact}</Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Personal Details Section */}
+                {(selectedDonor.age || selectedDonor.weight || selectedDonor.bloodPressure) && (
+                  <>
+                    <View style={styles.sectionHeaderContainer}>
+                      <Text style={styles.sectionHeaderText}>Personal Details</Text>
+                      <View style={styles.sectionHeaderLine} />
+                    </View>
+
+                    <View style={styles.modernCard}>
+                      <View style={styles.cardIconContainer}>
+                        <Text style={styles.cardIcon}>👤</Text>
+                      </View>
+                      <View style={styles.cardContent}>
+                        <Text style={styles.cardLabel}>PROFILE</Text>
+                        {selectedDonor.age && (
+                          <Text style={styles.cardSubtext}>Age: {selectedDonor.age} years</Text>
+                        )}
+                        {selectedDonor.weight && (
+                          <Text style={styles.cardSubtext}>Weight: {selectedDonor.weight} kg</Text>
+                        )}
+                        {selectedDonor.bloodPressure && (
+                          <Text style={styles.cardSubtext}>BP: {selectedDonor.bloodPressure}</Text>
+                        )}
+                      </View>
+                    </View>
+                  </>
+                )}
+
+                {/* Donation History Section */}
+                <View style={styles.sectionHeaderContainer}>
+                  <Text style={styles.sectionHeaderText}>Donation History</Text>
+                  <View style={styles.sectionHeaderLine} />
+                </View>
+
+                <View style={styles.modernCard}>
+                  <View style={styles.cardIconContainer}>
+                    <Text style={styles.cardIcon}>❤️</Text>
+                  </View>
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardLabel}>DONATIONS</Text>
+                    <Text style={styles.cardTitle}>
+                      {selectedDonor.donationCount || 0} {selectedDonor.donationCount === 1 ? 'Time' : 'Times'}
                     </Text>
+                    {selectedDonor.lastDonated && (
+                      <Text style={styles.cardSubtext}>
+                        Last donated: {new Date(selectedDonor.lastDonated).toLocaleDateString()}
+                      </Text>
+                    )}
                   </View>
-
-                  {selectedDonor.lastDonated && (
-                    <View style={styles.modalDetailRow}>
-                      <Text style={styles.modalDetailLabel}>📅 Last Donation:</Text>
-                      <Text style={styles.modalDetailValue}>
-                        {new Date(selectedDonor.lastDonated).toLocaleDateString()}
-                      </Text>
-                    </View>
-                  )}
-
-                  {selectedDonor.lastCheckup && (
-                    <View style={styles.modalDetailRow}>
-                      <Text style={styles.modalDetailLabel}>🏥 Last Checkup:</Text>
-                      <Text style={styles.modalDetailValue}>
-                        {new Date(selectedDonor.lastCheckup).toLocaleDateString()}
-                      </Text>
-                    </View>
-                  )}
-
-                  {selectedDonor.preferredTime && (
-                    <View style={styles.modalDetailRow}>
-                      <Text style={styles.modalDetailLabel}>⏰ Preferred Time:</Text>
-                      <Text style={styles.modalDetailValue}>{selectedDonor.preferredTime}</Text>
-                    </View>
-                  )}
                 </View>
 
-                <View style={styles.modalDetailSection}>
-                  <Text style={styles.sectionTitle}>Availability & Status</Text>
-                  
-                  <View style={styles.modalDetailRow}>
-                    <Text style={styles.modalDetailLabel}>✅ Status:</Text>
-                    <Text style={[
-                      styles.modalDetailValue,
-                      { color: selectedDonor.availability === 'Available' ? '#4CAF50' : '#F44336' }
-                    ]}>
-                      {selectedDonor.availability || 'Unknown'}
-                    </Text>
+                {/* Health Information */}
+                {(selectedDonor.lastCheckup || selectedDonor.preferredTime) && (
+                  <View style={styles.modernCard}>
+                    <View style={styles.cardIconContainer}>
+                      <Text style={styles.cardIcon}>🏥</Text>
+                    </View>
+                    <View style={styles.cardContent}>
+                      <Text style={styles.cardLabel}>HEALTH INFO</Text>
+                      {selectedDonor.lastCheckup && (
+                        <Text style={styles.cardSubtext}>
+                          Last checkup: {new Date(selectedDonor.lastCheckup).toLocaleDateString()}
+                        </Text>
+                      )}
+                      {selectedDonor.preferredTime && (
+                        <Text style={styles.cardSubtext}>
+                          Preferred time: {selectedDonor.preferredTime}
+                        </Text>
+                      )}
+                    </View>
                   </View>
+                )}
 
-                  {selectedDonor.registeredSince && (
-                    <View style={styles.modalDetailRow}>
-                      <Text style={styles.modalDetailLabel}>📝 Member Since:</Text>
-                      <Text style={styles.modalDetailValue}>
-                        {new Date(selectedDonor.registeredSince).toLocaleDateString()}
+                {/* Status Card */}
+                <View style={styles.modernCard}>
+                  <View style={styles.cardIconContainer}>
+                    <Text style={styles.cardIcon}>ℹ️</Text>
+                  </View>
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardLabel}>STATUS</Text>
+                    <View style={styles.statusBadgeContainer}>
+                      <View style={[
+                        styles.statusBadge, 
+                        { backgroundColor: selectedDonor.availability === 'Available' ? '#4CAF50' : '#FF9800' }
+                      ]}>
+                        <Text style={styles.statusBadgeText}>{selectedDonor.availability || 'Unknown'}</Text>
+                      </View>
+                    </View>
+                    {selectedDonor.registeredSince && (
+                      <Text style={styles.cardSubtext}>
+                        Member since: {new Date(selectedDonor.registeredSince).toLocaleDateString()}
                       </Text>
-                    </View>
-                  )}
-
-                  {selectedDonor.verified && (
-                    <View style={styles.verifiedBadge}>
-                      <Text style={styles.verifiedText}>✓ Verified Donor</Text>
-                    </View>
-                  )}
+                    )}
+                    {selectedDonor.verified && (
+                      <View style={styles.verifiedBadgeSmall}>
+                        <Text style={styles.verifiedBadgeText}>✓ Verified Donor</Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
 
+                {/* Medical History */}
                 {selectedDonor.medicalHistory && (
-                  <View style={styles.modalDetailSection}>
-                    <Text style={styles.sectionTitle}>Medical History</Text>
-                    <Text style={styles.modalNotes}>{selectedDonor.medicalHistory}</Text>
+                  <View style={styles.modernCardFull}>
+                    <View style={styles.notesHeader}>
+                      <Text style={styles.cardIcon}>🩺</Text>
+                      <Text style={styles.cardLabel}>MEDICAL HISTORY</Text>
+                    </View>
+                    <Text style={styles.cardNotesText}>{selectedDonor.medicalHistory}</Text>
                   </View>
                 )}
 
+                {/* Additional Notes */}
                 {selectedDonor.notes && (
-                  <View style={styles.modalDetailSection}>
-                    <Text style={styles.sectionTitle}>Additional Notes</Text>
-                    <Text style={styles.modalNotes}>{selectedDonor.notes}</Text>
+                  <View style={styles.modernCardFull}>
+                    <View style={styles.notesHeader}>
+                      <Text style={styles.cardIcon}>📝</Text>
+                      <Text style={styles.cardLabel}>ADDITIONAL NOTES</Text>
+                    </View>
+                    <Text style={styles.cardNotesText}>{selectedDonor.notes}</Text>
                   </View>
                 )}
 
+                {/* Action Button */}
                 <TouchableOpacity
-                  style={styles.modalCallButton}
+                  style={styles.modernActionButton}
                   onPress={() => {
                     setModalVisible(false);
                     handleCall(selectedDonor.contact);
                   }}
                 >
-                  <Text style={styles.modalCallButtonText}>📞 Call {selectedDonor.name}</Text>
+                  <Text style={styles.modernActionButtonText}>📞 Call {selectedDonor.name.split(' ')[0]}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.modalCloseButton}
+                  style={styles.modernCancelButton}
                   onPress={() => setModalVisible(false)}
                 >
-                  <Text style={styles.modalCloseButtonText}>Close</Text>
+                  <Text style={styles.modernCancelButtonText}>Close</Text>
                 </TouchableOpacity>
               </ScrollView>
             )}
@@ -831,6 +894,253 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Modern Modal Styles
+  modalHeaderModern: {
+    paddingTop: 40,
+    paddingBottom: 25,
+    paddingHorizontal: 20,
+    backgroundColor: '#E53935',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    position: 'relative',
+  },
+  modalCloseIconButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  modalCloseIcon: {
+    fontSize: 24,
+    color: '#FFF',
+    fontWeight: '600',
+  },
+  modalHeaderContent: {
+    alignItems: 'center',
+  },
+  bloodTypeBadgeModern: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  bloodTypeBadgeTextModern: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#E53935',
+  },
+  modalTitleModern: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginTop: 12,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  availablePillModern: {
+    backgroundColor: 'rgba(76, 175, 80, 0.9)',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginTop: 10,
+  },
+  availablePillText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  modalBodyModern: {
+    flex: 1,
+  },
+  modalBodyContent: {
+    padding: 18,
+    paddingBottom: 30,
+  },
+  modernCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 12,
+    flexDirection: 'row',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+  },
+  modernCardFull: {
+    backgroundColor: '#FFF9F9',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: '#FFE5E5',
+  },
+  cardIconContainer: {
+    width: 55,
+    height: 55,
+    borderRadius: 28,
+    backgroundColor: '#FFF5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    borderWidth: 2,
+    borderColor: '#FFE0E0',
+  },
+  cardIcon: {
+    fontSize: 26,
+  },
+  cardContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  cardLabel: {
+    fontSize: 10,
+    color: '#E53935',
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  cardTitle: {
+    fontSize: 17,
+    color: '#1A1A1A',
+    fontWeight: '700',
+    marginBottom: 3,
+    lineHeight: 22,
+  },
+  cardSubtext: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 3,
+    lineHeight: 18,
+  },
+  cardNotesText: {
+    fontSize: 14,
+    color: '#444',
+    lineHeight: 22,
+    marginTop: 8,
+  },
+  modernActionButton: {
+    backgroundColor: '#4CAF50',
+    padding: 18,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginTop: 15,
+    marginBottom: 8,
+    shadowColor: '#4CAF50',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modernActionButtonText: {
+    color: '#FFF',
+    fontSize: 17,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  modernCancelButton: {
+    padding: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 10,
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  modernCancelButtonText: {
+    color: '#666',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  sectionHeaderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 4,
+  },
+  sectionHeaderText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginRight: 12,
+  },
+  sectionHeaderLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 1,
+  },
+  quickCallButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  quickCallButtonText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  statusBadgeContainer: {
+    marginVertical: 6,
+  },
+  statusBadge: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  statusBadgeText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  verifiedBadgeSmall: {
+    backgroundColor: '#E3F2FD',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 15,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  verifiedBadgeText: {
+    color: '#1976D2',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  notesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
   },
   // Skeleton & Pagination Styles
   skeletonCard: {
