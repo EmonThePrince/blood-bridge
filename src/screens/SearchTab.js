@@ -112,12 +112,43 @@ export default function SearchTab() {
         setNextPageUrl(data.next);
       } else {
         const errorText = await response.text();
-        console.error('Error response:', errorText);
-        Alert.alert('Error', 'Failed to load donors. Please try again.');
+        console.error('Error response:', response.status, errorText);
+        
+        // More specific error messages
+        let errorMessage = 'Failed to load donors. Please try again.';
+        if (response.status === 502 || response.status === 503 || response.status === 504) {
+          errorMessage = 'Server is temporarily unavailable. Please wait a moment and try again.';
+        } else if (response.status === 500) {
+          errorMessage = 'Server error occurred. The backend team has been notified.';
+        } else if (response.status === 408) {
+          errorMessage = 'Request timeout. Please check your internet connection.';
+        }
+        
+        Alert.alert('Error', errorMessage);
+        
+        // If it's the first load and fails, set empty array to show "no donors" message
+        if (reset) {
+          setDonors([]);
+          setFilteredDonors([]);
+        }
       }
     } catch (error) {
       console.error('SearchTab - Error fetching donors:', error);
-      Alert.alert('Error', 'Network error. Please check your connection.');
+      
+      let errorMessage = 'Network error. Please check your connection.';
+      if (error.message.includes('timeout')) {
+        errorMessage = 'Connection timeout. The server might be slow or unavailable.';
+      } else if (error.message.includes('Network request failed')) {
+        errorMessage = 'Cannot connect to server. Please check your internet connection.';
+      }
+      
+      Alert.alert('Error', errorMessage);
+      
+      // If it's the first load and fails, set empty array to show "no donors" message
+      if (reset) {
+        setDonors([]);
+        setFilteredDonors([]);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
